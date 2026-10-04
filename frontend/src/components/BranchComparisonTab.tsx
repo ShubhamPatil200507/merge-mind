@@ -10,6 +10,7 @@ import {
   Code2
 } from 'lucide-react';
 import { RepositoryAnalysis } from '../types';
+import { API_BASE } from '../config';
 
 interface BranchComparisonTabProps {
   analysis: RepositoryAnalysis;
@@ -61,7 +62,7 @@ export const BranchComparisonTab: React.FC<BranchComparisonTabProps> = ({
   useEffect(() => {
     if (!selectedFile) return;
     setIsDiffLoading(true);
-    fetch(`/api/file-diff?filename=${encodeURIComponent(selectedFile)}&branch_a=${encodeURIComponent(branchA)}&branch_b=${encodeURIComponent(branchB)}`)
+    fetch(`${API_BASE}/api/file-diff?filename=${encodeURIComponent(selectedFile)}&branch_a=${encodeURIComponent(branchA)}&branch_b=${encodeURIComponent(branchB)}`)
       .then((res) => res.json())
       .then((data) => {
         setDiffData(data);

@@ -9,6 +9,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { IntegrationRisk, TestExecutionResult } from '../types';
+import { API_BASE } from '../config';
 
 interface TestRecommendationsTabProps {
   risks: IntegrationRisk[];
@@ -57,7 +58,7 @@ export const TestRecommendationsTab: React.FC<TestRecommendationsTabProps> = ({
     setTestResult(null);
 
     try {
-      const res = await fetch('/api/test/run', {
+      const res = await fetch(`${API_BASE}/api/test/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ command })

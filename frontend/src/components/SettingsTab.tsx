@@ -12,6 +12,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { LLMSettings } from '../types';
+import { API_BASE } from '../config';
 
 export const SettingsTab: React.FC = () => {
   const [settings, setSettings] = useState<LLMSettings | null>(null);
@@ -32,7 +33,7 @@ export const SettingsTab: React.FC = () => {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetch(`${API_BASE}/api/settings`);
       if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch settings`);
       const data: LLMSettings = await res.json();
       setSettings(data);
@@ -62,7 +63,7 @@ export const SettingsTab: React.FC = () => {
         body.api_key = apiKey.trim();
       }
 
-      const res = await fetch('/api/settings', {
+      const res = await fetch(`${API_BASE}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)

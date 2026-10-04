@@ -15,6 +15,7 @@ import { RiskDetailModal } from './components/RiskDetailModal';
 import { ConnectModal } from './components/ConnectModal';
 import { RepositoryAnalysis, ReviewStatus, IntegrationRisk } from './types';
 import { RefreshCw, AlertCircle, AlertTriangle } from 'lucide-react';
+import { API_BASE } from './config';
 
 export function App() {
   const [analysis, setAnalysis] = useState<RepositoryAnalysis | null>(null);
@@ -36,7 +37,7 @@ export function App() {
     setIsLoading(true);
     setError(null);
     try {
-      let url = '/api/demo';
+      let url = `${API_BASE}/api/demo`;
       if (branchA && branchB) {
         url += `?branch_a=${encodeURIComponent(branchA)}&branch_b=${encodeURIComponent(branchB)}`;
       }
@@ -60,7 +61,7 @@ export function App() {
     setIsConnectModalOpen(false);
 
     try {
-      const res = await fetch('/api/analyze', {
+      const res = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -90,7 +91,7 @@ export function App() {
 
   const handleReviewRisk = async (riskId: string, status: ReviewStatus, notes?: string) => {
     try {
-      await fetch('/api/review', {
+      await fetch(`${API_BASE}/api/review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
