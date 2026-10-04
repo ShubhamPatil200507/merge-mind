@@ -1,7 +1,8 @@
 """
 Agent 6 — Resolution Planning Agent
-Generates actionable, step-by-step instructions specific to the actual repository.
+Generates actionable, step-by-step instructions specific to the actual repository and affected files.
 Avoids generic 'resolve the conflict' messages.
+Never invents file paths.
 """
 
 from typing import List
@@ -10,51 +11,56 @@ from app.agents.collision_detection import RawCollision
 
 def plan_resolution(collision: RawCollision) -> List[ResolutionStep]:
     """
-    Creates ordered, concrete resolution steps for developers to execute.
+    Creates ordered, concrete resolution steps for developers to execute,
+    referencing real affected files from the collision.
     """
+    files = collision.affected_files or []
+    primary_file = files[0] if files else "source file"
+    secondary_file = files[1] if len(files) > 1 else primary_file
+
     if collision.collision_type == CollisionType.SEMANTIC:
         return [
             ResolutionStep(
                 step_number=1,
-                action="Inspect middleware mounting sequence in server.js",
-                detail="Open server.js and compare how `app.use('/v1', authMiddleware)` interacts with the refactored `handleRequest` dispatch block.",
-                file_reference="server.js"
+                action=f"Inspect middleware mounting sequence in {primary_file}",
+                detail=f"Open {primary_file} and verify the execution order between authentication middleware and the refactored request handler dispatch block.",
+                file_reference=primary_file
             ),
             ResolutionStep(
                 step_number=2,
-                action="Preserve authMiddleware execution in the primary request chain",
-                detail="Ensure `authMiddleware` is applied as upstream middleware before `handleRequest` dispatches to downstream route handlers.",
-                file_reference="middleware/auth.js"
+                action="Preserve authentication middleware upstream in the request chain",
+                detail="Ensure security validation is mounted before any request handler dispatches to downstream routes.",
+                file_reference=secondary_file
             ),
             ResolutionStep(
                 step_number=3,
-                action="Apply the request-handler asynchronous refactor",
-                detail="Incorporate Sarah's non-blocking stream changes from `handlers/requestHandler.js`, ensuring it respects `req.user` context populated by auth.",
-                file_reference="handlers/requestHandler.js"
+                action="Incorporate request handler performance improvements downstream",
+                detail="Ensure the refactored async pipeline operates downstream of verified authentication context (e.g., req.user).",
+                file_reference=primary_file
             ),
             ResolutionStep(
                 step_number=4,
-                action="Ensure all protected routes enforce authentication priority",
-                detail="Verify that `/v1/users` and sensitive endpoints cannot execute without passing through `authMiddleware` token validation.",
-                file_reference="routes/user.js"
+                action="Verify protected endpoints enforce security priority",
+                detail="Confirm that sensitive routes cannot execute without passing token verification.",
+                file_reference=secondary_file
             ),
             ResolutionStep(
                 step_number=5,
-                action="Update affected unit and pipeline test fixtures",
-                detail="Combine assertions from `tests/auth.test.js` and `tests/api.test.js` into an integrated pipeline test suite.",
-                file_reference="tests/auth.test.js"
+                action="Update integration test fixtures",
+                detail="Update tests to assert both authentication rejection (401) and valid stream processing under authenticated sessions.",
+                file_reference="tests"
             ),
             ResolutionStep(
                 step_number=6,
-                action="Run authentication and API integration tests",
-                detail="Execute `npm run test:auth` and `npm run test:integration` to verify 401 Unauthorized returns for missing tokens.",
-                file_reference="package.json"
+                action="Run verification test suite",
+                detail="Run your local test runner to verify both branches' acceptance criteria pass simultaneously.",
+                file_reference=primary_file
             ),
             ResolutionStep(
                 step_number=7,
-                action="Review the consolidated diff before merging PR",
+                action="Review the consolidated diff before merging",
                 detail="Conduct a human-in-the-loop review of the final composite diff to confirm no security bypass paths remain.",
-                file_reference="server.js"
+                file_reference=primary_file
             )
         ]
 
@@ -62,33 +68,33 @@ def plan_resolution(collision: RawCollision) -> List[ResolutionStep]:
         return [
             ResolutionStep(
                 step_number=1,
-                action="Review API payload format differences in user route",
-                detail="Examine `routes/user.js` in `feature/db-migration` where `userId` was renamed to `user_id` (UUID).",
-                file_reference="routes/user.js"
+                action=f"Inspect API contract signatures in {primary_file}",
+                detail="Review request payload and response schema definitions across both branches.",
+                file_reference=primary_file
             ),
             ResolutionStep(
                 step_number=2,
-                action="Provide backwards-compatible payload or add API versioning",
-                detail="Either return both `{ userId: user.id, user_id: user.uuid }` temporarily, or expose a `/v2/users` versioned route.",
-                file_reference="routes/user.js"
+                action="Implement backward-compatible contract adapter",
+                detail="Support both legacy and modern field names in response payloads during migration.",
+                file_reference=primary_file
             ),
             ResolutionStep(
                 step_number=3,
-                action="Update frontend TypeScript types in UserProfile widget",
-                detail="Update `client/components/UserProfile.tsx` to handle string UUID `user_id` without failing numeric validation checks.",
-                file_reference="client/components/UserProfile.tsx"
+                action=f"Verify consumer deserializers in {secondary_file}",
+                detail="Check that client consumers correctly parse updated payload attributes.",
+                file_reference=secondary_file
             ),
             ResolutionStep(
                 step_number=4,
-                action="Update API client deserializer in services/api.ts",
-                detail="Modify `fetchUser()` type-check assertion to accept string identifiers.",
-                file_reference="client/services/api.ts"
+                action="Run contract verification tests",
+                detail="Execute API integration test suite and frontend typecheck to ensure zero runtime TypeErrors.",
+                file_reference="tests"
             ),
             ResolutionStep(
                 step_number=5,
-                action="Execute contract validation tests",
-                detail="Run client component tests and API schema snapshot verification.",
-                file_reference="tests/api.test.js"
+                action="Review final diff and approve merge",
+                detail="Ensure both backend and frontend teams sign off on the unified payload contract.",
+                file_reference=primary_file
             )
         ]
 
@@ -96,48 +102,82 @@ def plan_resolution(collision: RawCollision) -> List[ResolutionStep]:
         return [
             ResolutionStep(
                 step_number=1,
-                action="Compare diverging dependencies in package.json",
-                detail=f"Inspect package version changes between '{collision.branch_a}' and '{collision.branch_b}'.",
-                file_reference="package.json"
+                action=f"Compare divergent package versions in {primary_file}",
+                detail="Inspect conflicting dependency versions declared in manifests across both branches.",
+                file_reference=primary_file
             ),
             ResolutionStep(
                 step_number=2,
-                action="Consolidate compatible semver ranges",
-                detail="Align `pg` and Prisma packages to compatible LTS releases (e.g. pg ^8.12.0 with Prisma ^5.15.0).",
-                file_reference="package.json"
+                action="Align on compatible semver range",
+                detail="Select a mutually compatible version range that satisfies both branch features without peer conflicts.",
+                file_reference=primary_file
             ),
             ResolutionStep(
                 step_number=3,
-                action="Regenerate clean package-lock.json",
-                detail="Run `npm install` to resolve and regenerate a deterministic lockfile without peer dependency conflicts.",
-                file_reference="package-lock.json"
+                action="Regenerate package lockfile cleanly",
+                detail="Run clean install command (`npm install` / `pip install`) to produce an unambiguous lockfile.",
+                file_reference=primary_file
             ),
             ResolutionStep(
                 step_number=4,
-                action="Verify build and database connection pool",
-                detail="Run `npm run build` and database smoke test to confirm driver compatibility.",
-                file_reference="config/database.js"
+                action="Run build and test suite",
+                detail="Ensure the unified dependency tree compiles and passes automated regression tests.",
+                file_reference=primary_file
             )
         ]
 
-    else: # DIRECT_FILE
+    elif collision.collision_type == CollisionType.SCHEMA:
         return [
             ResolutionStep(
                 step_number=1,
-                action=f"Inspect concurrent modifications in {collision.affected_files[0]}",
-                detail=f"Review changes made by both developers in {collision.affected_files[0]}.",
-                file_reference=collision.affected_files[0]
+                action=f"Inspect divergent migration files in {primary_file}",
+                detail="Review migration timestamps, version tags, and altered tables/columns across both branches.",
+                file_reference=primary_file
             ),
             ResolutionStep(
                 step_number=2,
-                action="Merge logic chunks without discarding parallel functionality",
-                detail="Carefully reconcile the conflicting hunks, ensuring functions from both branches are preserved.",
-                file_reference=collision.affected_files[0]
+                action="Sequence migration revisions serially",
+                detail="Re-base migration files so one cleanly succeeds the other, avoiding parallel branch migration forks.",
+                file_reference=primary_file
             ),
             ResolutionStep(
                 step_number=3,
-                action="Run repository test suite",
-                detail="Execute local test suite to verify no syntax errors or regressions were introduced.",
-                file_reference=collision.affected_files[0]
+                action="Test migration up and down scripts in test database",
+                detail="Run migrations against an ephemeral test database to confirm idempotency and zero column collisions.",
+                file_reference=secondary_file
+            ),
+            ResolutionStep(
+                step_number=4,
+                action="Verify ORM entity models match unified schema",
+                detail="Update application entity classes to reflect the serialized database structure.",
+                file_reference=primary_file
+            )
+        ]
+
+    else:
+        return [
+            ResolutionStep(
+                step_number=1,
+                action=f"Inspect overlapping changes in {primary_file}",
+                detail="Examine modified hunks and function signatures across both branches.",
+                file_reference=primary_file
+            ),
+            ResolutionStep(
+                step_number=2,
+                action="Align on unified implementation logic",
+                detail="Preserve intent from both changes while avoiding shadowed variables or conflicting side effects.",
+                file_reference=primary_file
+            ),
+            ResolutionStep(
+                step_number=3,
+                action="Run automated regression tests",
+                detail="Execute local test suite to ensure the combined implementation meets requirements.",
+                file_reference=primary_file
+            ),
+            ResolutionStep(
+                step_number=4,
+                action="Perform human developer diff review",
+                detail="Review the resulting unified diff before completing merge.",
+                file_reference=primary_file
             )
         ]

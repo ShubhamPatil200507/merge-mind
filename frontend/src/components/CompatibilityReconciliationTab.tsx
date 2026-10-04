@@ -209,7 +209,7 @@ export const CompatibilityReconciliationTab: React.FC<CompatibilityReconciliatio
                     MANUAL INTEGRATION INSTRUCTIONS:
                   </div>
                   <ol className="space-y-2 text-gray-300 list-decimal list-inside leading-relaxed">
-                    {patch.instructions.map((inst, idx) => (
+                    {(patch.instructions || []).map((inst: string, idx: number) => (
                       <li key={idx} className="p-2 rounded bg-[#0d1117] border border-[#30363d]">
                         {inst}
                       </li>

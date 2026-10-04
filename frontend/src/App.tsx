@@ -10,6 +10,7 @@ import { ResolutionCenterTab } from './components/ResolutionCenterTab';
 import { TestRecommendationsTab } from './components/TestRecommendationsTab';
 import { CompatibilityReconciliationTab } from './components/CompatibilityReconciliationTab';
 import { AgentPipelineTab } from './components/AgentPipelineTab';
+import { SettingsTab } from './components/SettingsTab';
 import { RiskDetailModal } from './components/RiskDetailModal';
 import { ConnectModal } from './components/ConnectModal';
 import { RepositoryAnalysis, ReviewStatus, IntegrationRisk } from './types';
@@ -203,7 +204,13 @@ export function App() {
           />
         )}
 
-        {analysis && activeTab !== 'landing' && (
+        {activeTab === 'settings' && (
+          <div className="animate-fadeIn">
+            <SettingsTab />
+          </div>
+        )}
+
+        {analysis && activeTab !== 'landing' && activeTab !== 'settings' && (
           <div className="animate-fadeIn">
             {activeTab === 'overview' && (
               <OverviewTab

@@ -7,7 +7,11 @@ export type CollisionType =
   | 'API_CONTRACT'
   | 'DEPENDENCY'
   | 'SCHEMA'
-  | 'SEMANTIC';
+  | 'SEMANTIC'
+  | 'CONFIGURATION'
+  | 'EXECUTION_ORDER'
+  | 'STATE_DATA_FLOW'
+  | 'TEST_INCOMPATIBILITY';
 
 export type ReviewStatus = 'PENDING' | 'REVIEWED' | 'DISMISSED';
 
@@ -48,7 +52,7 @@ export interface ChangeMap {
   schema_changed: string[];
   tests_changed: string[];
   frontend_components: string[];
-  backend_services: string[];
+  backend_services?: string[];
 }
 
 export interface EvidenceItem {
@@ -79,23 +83,34 @@ export interface ResolutionStep {
 }
 
 export interface TestRecommendation {
-  tooling_detected: string;
-  test_commands: string[];
-  test_areas: string[];
+  framework_detected?: string;
+  tooling_detected?: string;
+  test_runner?: string;
+  recommended_commands?: string[];
+  test_commands?: string[];
+  verification_areas?: string[];
+  test_areas?: string[];
   reasoning: string;
 }
 
 export interface CompatibilityPatch {
   id: string;
-  risk_id: string;
+  risk_id?: string;
   file_path: string;
-  target_branch: string;
-  source_branch: string;
-  compatibility_strategy: string;
-  summary_of_changes: string;
+  target_branch?: string;
+  source_branch?: string;
+  strategy_name?: string;
+  summary?: string;
+  compatibility_strategy?: string;
+  summary_of_changes?: string;
   reconciled_code: string;
   unified_diff: string;
-  instructions: string[];
+  instructions?: string[];
+  git_apply_command?: string;
+  why_this_resolves?: string;
+  confidence?: number;
+  is_validated?: boolean;
+  ai_disclaimer?: string;
 }
 
 export interface IntegrationRisk {
@@ -171,4 +186,25 @@ export interface RepositoryAnalysis {
   is_demo: boolean;
   rate_limited: boolean;
   warning_message?: string;
+}
+
+export interface TestExecutionResult {
+  command: string;
+  status: 'completed' | 'failed' | 'timeout' | 'sandboxed_unavailable' | 'forbidden';
+  exit_code?: number;
+  stdout: string;
+  stderr: string;
+  duration_ms: number;
+  is_sandboxed: boolean;
+  disclaimer: string;
+}
+
+export interface LLMSettings {
+  provider: string;
+  model: string;
+  has_api_key: boolean;
+  masked_api_key: string;
+  base_url?: string;
+  engine_mode: string;
+  is_ai_active: boolean;
 }

@@ -68,7 +68,7 @@ ${currentRisk.potential_impact}
 Framework: ${currentRisk.test_recommendation.tooling_detected}
 Commands:
 \`\`\`bash
-${currentRisk.test_recommendation.test_commands.join('\n')}
+${currentRisk.test_recommendation.test_commands?.join('\n') || ''}
 \`\`\`
 
 ---

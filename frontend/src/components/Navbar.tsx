@@ -11,7 +11,8 @@ import {
   FolderGit2,
   Terminal,
   Code2,
-  RefreshCw
+  RefreshCw,
+  Settings
 } from 'lucide-react';
 import { RepositoryAnalysis } from '../types';
 
@@ -43,6 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'resolutions', label: 'Resolution Center', icon: CheckCircle2 },
     { id: 'tests', label: 'Test Recommendations', icon: Terminal },
     { id: 'pipeline', label: 'Agent Pipeline', icon: Cpu },
+    { id: 'settings', label: 'AI Settings', icon: Settings },
   ];
 
   const criticalCount = analysis?.risk_summary?.CRITICAL || 0;

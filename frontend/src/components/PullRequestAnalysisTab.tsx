@@ -220,7 +220,7 @@ export const PullRequestAnalysisTab: React.FC<PullRequestAnalysisTabProps> = ({
                 <>
                   <div className="text-gray-400">Tooling: {relatedRisks[0].test_recommendation.tooling_detected}</div>
                   <div className="space-y-1 pt-1">
-                    {relatedRisks[0].test_recommendation.test_commands.map((cmd) => (
+                    {relatedRisks[0].test_recommendation.test_commands?.map((cmd) => (
                       <div key={cmd} className="p-1.5 rounded bg-[#0d1117] border border-[#30363d] text-emerald-400">
                         $ {cmd}
                       </div>

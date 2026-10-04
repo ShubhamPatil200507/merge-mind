@@ -4,9 +4,11 @@ import {
   Copy, 
   Check, 
   Play, 
-  RefreshCw
+  RefreshCw,
+  ShieldAlert,
+  AlertCircle
 } from 'lucide-react';
-import { IntegrationRisk } from '../types';
+import { IntegrationRisk, TestExecutionResult } from '../types';
 
 interface TestRecommendationsTabProps {
   risks: IntegrationRisk[];
@@ -23,13 +25,17 @@ export const TestRecommendationsTab: React.FC<TestRecommendationsTabProps> = ({
   const [copiedCmd, setCopiedCmd] = useState<string | null>(null);
   const [checkedAreas, setCheckedAreas] = useState<string[]>([]);
   const [isRunningTests, setIsRunningTests] = useState<boolean>(false);
-  const [testOutput, setTestOutput] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<TestExecutionResult | null>(null);
+  const [selectedCommandToRun, setSelectedCommandToRun] = useState<string>('');
 
   if (!currentRisk) {
     return <div className="p-8 text-center text-gray-500 font-mono text-xs">No active risks detected.</div>;
   }
 
   const rec = currentRisk.test_recommendation;
+  const commands = rec.recommended_commands || rec.test_commands || ['npm test'];
+  const areas = rec.verification_areas || rec.test_areas || [];
+  const toolingName = rec.framework_detected || rec.tooling_detected || 'Detected Test Runner';
 
   const handleCopy = (cmd: string) => {
     navigator.clipboard.writeText(cmd);
@@ -45,31 +51,38 @@ export const TestRecommendationsTab: React.FC<TestRecommendationsTabProps> = ({
     }
   };
 
-  const handleSimulateTests = () => {
+  const handleExecuteSandboxedCommand = async (command: string) => {
+    setSelectedCommandToRun(command);
     setIsRunningTests(true);
-    setTestOutput(null);
+    setTestResult(null);
 
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/test/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command })
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}: Failed to reach sandbox test runner`);
+      }
+
+      const data: TestExecutionResult = await res.json();
+      setTestResult(data);
+    } catch (err: any) {
+      setTestResult({
+        command,
+        status: 'sandboxed_unavailable',
+        exit_code: -1,
+        stdout: '',
+        stderr: err.message || 'Test execution unavailable in this environment. Please run commands locally in your terminal.',
+        duration_ms: 0,
+        is_sandboxed: true,
+        disclaimer: 'Execution unavailable in current host sandbox.'
+      });
+    } finally {
       setIsRunningTests(false);
-      setTestOutput(`$ jest tests/auth.test.js tests/integration/auth_pipeline.test.js
-
-PASS tests/auth.test.js (1.38s)
-  authMiddleware
-    [PASS] rejects unauthenticated requests with HTTP 401 (42ms)
-    [PASS] validates bearer JWT and populates req.user (16ms)
-    [PASS] rejects expired token signatures with HTTP 403 (11ms)
-
-PASS tests/integration/auth_pipeline.test.js (2.05s)
-  API Pipeline Order Verification
-    [PASS] verifies authMiddleware mounts prior to handleRequest (84ms)
-    [PASS] /v1/users protected route asserts active req.user context (60ms)
-
-Test Suites: 2 passed, 2 total
-Tests:       5 passed, 5 total
-Snapshots:   0 total
-Time:        3.43s
-Exit Code:   0 (SUCCESS)`);
-    }, 1500);
+    }
   };
 
   return (
@@ -98,135 +111,164 @@ Exit Code:   0 (SUCCESS)`);
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
-        {/* Left 2 Cols: Tooling & Commands */}
+        {/* Left 2 Cols: Commands & Reasoning */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="p-5 rounded-lg bg-[#161b22] border border-[#30363d] space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#30363d]">
-              <div>
-                <div className="flex items-center gap-2 mb-1 font-mono text-[11px]">
-                  <span className="px-1.5 py-0.2 rounded bg-[#0d1117] text-gray-400 border border-[#30363d]">
-                    AGENT 7 TEST RECOMMENDATIONS
-                  </span>
-                  <span className="text-gray-400 font-mono">
-                    Tooling: {rec.tooling_detected}
-                  </span>
-                </div>
-                <h3 className="text-base font-semibold text-white">
-                  Targeted Verification Commands for {currentRisk.branches[0]} ↔ {currentRisk.branches[1]}
-                </h3>
+          
+          {/* Framework Banner */}
+          <div className="p-4 rounded-lg bg-[#161b22] border border-[#30363d] space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Terminal className="w-4 h-4 text-blue-400" />
+                <span className="font-mono text-xs font-semibold text-white">
+                  DETECTED TEST HARNESS
+                </span>
               </div>
-
-              <button
-                onClick={handleSimulateTests}
-                disabled={isRunningTests}
-                className="px-3 py-1.5 rounded bg-[#238636] hover:bg-[#2ea043] text-white text-xs font-mono font-medium transition-colors flex items-center gap-1.5 disabled:opacity-50"
-              >
-                {isRunningTests ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <Play className="w-3 h-3 fill-white" />
-                )}
-                {isRunningTests ? 'Running Suites...' : 'Run Test Suite'}
-              </button>
-            </div>
-
-            {/* Rationale */}
-            <div className="p-3 rounded bg-[#0d1117] border border-[#30363d] text-xs text-gray-300 space-y-1">
-              <span className="text-gray-500 font-mono text-[10px] uppercase block">
-                TOOLING INFERENCE:
+              <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#21262d] text-gray-300 border border-[#30363d]">
+                {toolingName}
               </span>
-              <p className="leading-relaxed font-sans text-xs">
-                {rec.reasoning}
-              </p>
+            </div>
+            <p className="text-xs text-gray-300 font-sans leading-relaxed">
+              {rec.reasoning}
+            </p>
+          </div>
+
+          {/* Recommended Commands List */}
+          <div className="rounded-lg bg-[#161b22] border border-[#30363d] overflow-hidden">
+            <div className="px-4 py-3 border-b border-[#30363d] bg-[#0d1117] flex items-center justify-between text-xs font-mono">
+              <span className="text-gray-300 font-semibold">RECOMMENDED VERIFICATION COMMANDS</span>
+              <span className="text-gray-500 text-[11px]">Click Play to execute in sandboxed runner</span>
             </div>
 
-            {/* Test Commands */}
-            <div className="space-y-2">
-              <div className="text-xs font-mono text-gray-400 uppercase">
-                RECOMMENDED CLI COMMANDS:
-              </div>
-
-              <div className="space-y-1.5">
-                {rec.test_commands.map((cmd) => (
-                  <div
-                    key={cmd}
-                    className="p-2.5 rounded bg-[#0d1117] border border-[#30363d] flex items-center justify-between gap-2 font-mono text-xs text-gray-200"
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="text-gray-600 select-none">$</span>
-                      <span className="truncate">{cmd}</span>
-                    </div>
-
+            <div className="divide-y divide-[#30363d]/60">
+              {commands.map((cmd, idx) => (
+                <div key={idx} className="p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs font-mono hover:bg-[#21262d]/40 transition-colors">
+                  <div className="flex items-center gap-2 overflow-x-auto text-gray-200">
+                    <span className="text-gray-500 select-none">$</span>
+                    <code>{cmd}</code>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      onClick={() => handleExecuteSandboxedCommand(cmd)}
+                      disabled={isRunningTests}
+                      className="px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-emerald-400 border border-emerald-900/60 transition-colors flex items-center gap-1.5 text-xs disabled:opacity-50"
+                      title="Run in isolated subprocess sandbox"
+                    >
+                      <Play className="w-3 h-3 fill-emerald-400" />
+                      <span>Execute Sandbox</span>
+                    </button>
                     <button
                       onClick={() => handleCopy(cmd)}
-                      className="px-2 py-0.5 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-400 hover:text-white transition-colors text-[11px] flex items-center gap-1 shrink-0"
+                      className="px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-300 border border-[#30363d] transition-colors flex items-center gap-1 text-xs"
+                      title="Copy command to clipboard"
                     >
                       {copiedCmd === cmd ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      {copiedCmd === cmd ? 'Copied' : 'Copy'}
+                      <span>{copiedCmd === cmd ? 'Copied' : 'Copy'}</span>
                     </button>
                   </div>
-                ))}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Sandboxed Test Output Console (Honest Real Execution) */}
+          <div className="rounded-lg bg-[#0d1117] border border-[#30363d] overflow-hidden font-mono text-xs">
+            <div className="px-4 py-2.5 border-b border-[#30363d] bg-[#161b22] flex items-center justify-between text-[11px]">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80"></span>
+                <span className="text-gray-400 ml-2 font-semibold">SANDBOX TERMINAL OUTPUT</span>
               </div>
+              {testResult && (
+                <span className={`px-2 py-0.5 rounded text-[10px] ${
+                  testResult.status === 'completed' 
+                    ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' 
+                    : testResult.status === 'sandboxed_unavailable'
+                    ? 'bg-[#21262d] text-gray-400 border border-[#30363d]'
+                    : 'bg-red-950 text-red-300 border border-red-800'
+                }`}>
+                  {testResult.status.toUpperCase()} ({testResult.duration_ms}ms)
+                </span>
+              )}
             </div>
 
-            {/* Terminal Output */}
-            {testOutput && (
-              <div className="space-y-1.5 pt-1">
-                <div className="flex items-center justify-between text-[11px] font-mono text-gray-400">
-                  <span>TERMINAL EXECUTION LOG:</span>
-                  <span className="text-emerald-400">EXIT: 0</span>
+            <div className="p-4 min-h-[160px] text-gray-300 whitespace-pre-wrap font-mono text-xs overflow-x-auto leading-relaxed">
+              {isRunningTests ? (
+                <div className="flex items-center gap-2 text-gray-400">
+                  <RefreshCw className="w-4 h-4 animate-spin text-blue-400" />
+                  <span>Spawning isolated subprocess sandbox for: <code>{selectedCommandToRun}</code>...</span>
                 </div>
-                <pre className="p-3.5 rounded bg-black border border-[#30363d] font-mono text-xs text-emerald-400 overflow-x-auto whitespace-pre-wrap leading-relaxed">
-                  {testOutput}
-                </pre>
-              </div>
-            )}
+              ) : testResult ? (
+                <div className="space-y-2">
+                  <div className="text-gray-500 text-[11px]">$ {testResult.command}</div>
+                  {testResult.stdout && <div className="text-emerald-400">{testResult.stdout}</div>}
+                  {testResult.stderr && (
+                    <div className={testResult.status === 'sandboxed_unavailable' ? 'text-amber-300' : 'text-red-400'}>
+                      {testResult.stderr}
+                    </div>
+                  )}
+                  <div className="pt-2 text-[10px] text-gray-500 border-t border-[#30363d]/50">
+                    Exit code: {testResult.exit_code ?? 'N/A'} • {testResult.disclaimer}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-gray-500 text-xs">
+                  Click <strong className="text-emerald-400">Execute Sandbox</strong> on any command above to trigger genuine subprocess execution.
+                  <br />
+                  <span className="text-[11px] text-gray-600 mt-1 block">
+                    Security Policy: Strict command allowlist, process timeouts (10s), zero backend credentials exposed.
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
+
         </div>
 
-        {/* Right 1 Col: Test Checklist */}
+        {/* Right 1 Col: Verification Checklist */}
         <div className="space-y-4">
           <div className="p-4 rounded-lg bg-[#161b22] border border-[#30363d] space-y-3">
-            <div className="border-b border-[#30363d] pb-2">
-              <div className="text-xs font-mono font-semibold text-white">CHECKLIST</div>
-              <div className="text-[11px] text-gray-400">Specific integration checkpoints</div>
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="text-white font-semibold">VERIFICATION AREAS ({checkedAreas.length}/{areas.length})</span>
             </div>
+            <p className="text-[11px] text-gray-400 font-sans">
+              Interactive sign-off checklist for engineering leads before approving merge:
+            </p>
 
-            <div className="space-y-2">
-              {rec.test_areas.map((area, idx) => {
+            <div className="space-y-2 pt-1">
+              {areas.map((area, idx) => {
                 const isChecked = checkedAreas.includes(area);
-
                 return (
                   <div
                     key={idx}
                     onClick={() => toggleArea(area)}
                     className={`p-2.5 rounded border transition-colors cursor-pointer flex items-start gap-2.5 text-xs ${
                       isChecked
-                        ? 'bg-[#161b22]/50 border-gray-800 text-gray-400'
+                        ? 'bg-emerald-950/40 border-emerald-800 text-emerald-200'
                         : 'bg-[#0d1117] border-[#30363d] text-gray-300 hover:border-gray-500'
                     }`}
                   >
-                    <div className="pt-0.5">
-                      <div
-                        className={`w-3.5 h-3.5 rounded flex items-center justify-center border transition-colors ${
-                          isChecked
-                            ? 'bg-emerald-700 border-emerald-600 text-white'
-                            : 'border-gray-600'
-                        }`}
-                      >
-                        {isChecked && <Check className="w-2.5 h-2.5 stroke-[3]" />}
-                      </div>
+                    <div className={`w-4 h-4 rounded shrink-0 mt-0.5 border flex items-center justify-center ${
+                      isChecked ? 'bg-emerald-600 border-emerald-500 text-white' : 'border-[#30363d]'
+                    }`}>
+                      {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                     </div>
                     <span className="leading-snug">{area}</span>
                   </div>
                 );
               })}
             </div>
+          </div>
 
-            <div className="pt-2 text-[11px] font-mono text-gray-500 border-t border-[#30363d] flex justify-between">
-              <span>VERIFIED:</span>
-              <span className="text-white font-bold">{checkedAreas.length} / {rec.test_areas.length}</span>
+          {/* Security Notice */}
+          <div className="p-3.5 rounded-lg bg-[#0d1117] border border-[#30363d] text-xs space-y-1.5 text-gray-400">
+            <div className="flex items-center gap-2 text-gray-200 font-mono text-[11px]">
+              <ShieldAlert className="w-3.5 h-3.5 text-blue-400" />
+              <span>Zero Fake Execution Policy</span>
             </div>
+            <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
+              MergeMind never outputs fabricated test passes. If the host environment lacks dependencies (e.g., node_modules or database containers), the runner reports runner availability honestly.
+            </p>
           </div>
         </div>
 

@@ -35,3 +35,10 @@ yarn-error.log*
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Databases & Test Cache
+*.db
+*.sqlite
+*.sqlite3
+.pytest_cache/
+

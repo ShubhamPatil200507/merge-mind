@@ -9,13 +9,17 @@ class RiskLevel(str, Enum):
     CRITICAL = "CRITICAL"
 
 class CollisionType(str, Enum):
-    DIRECT_FILE = "DIRECT_FILE"             # Type A
-    FUNCTION = "FUNCTION"                   # Type B
-    STRUCTURAL = "STRUCTURAL"               # Type C
-    API_CONTRACT = "API_CONTRACT"           # Type D
-    DEPENDENCY = "DEPENDENCY"               # Type E
-    SCHEMA = "SCHEMA"                       # Type F
-    SEMANTIC = "SEMANTIC"                   # Type G
+    DIRECT_FILE = "DIRECT_FILE"
+    FUNCTION = "FUNCTION"
+    STRUCTURAL = "STRUCTURAL"
+    API_CONTRACT = "API_CONTRACT"
+    DEPENDENCY = "DEPENDENCY"
+    SCHEMA = "SCHEMA"
+    SEMANTIC = "SEMANTIC"
+    CONFIGURATION = "CONFIGURATION"
+    EXECUTION_ORDER = "EXECUTION_ORDER"
+    STATE_DATA_FLOW = "STATE_DATA_FLOW"
+    TEST_INCOMPATIBILITY = "TEST_INCOMPATIBILITY"
 
 class ReviewStatus(str, Enum):
     PENDING = "PENDING"
@@ -84,21 +88,32 @@ class ResolutionStep(BaseModel):
     file_reference: Optional[str] = None
 
 class TestRecommendation(BaseModel):
-    tooling_detected: str # "Jest", "Vitest", "pytest", "Maven", "npm", "pnpm", "yarn"
-    test_commands: List[str]
-    test_areas: List[str]
-    reasoning: str
+    tooling_detected: str = "Standard Test Runner"
+    test_commands: List[str] = []
+    test_areas: List[str] = []
+    reasoning: str = ""
+    framework_detected: Optional[str] = None
+    test_runner: Optional[str] = None
+    recommended_commands: Optional[List[str]] = None
+    verification_areas: Optional[List[str]] = None
 
 class CompatibilityPatch(BaseModel):
     id: str
-    risk_id: str
     file_path: str
-    target_branch: str
-    source_branch: str
-    compatibility_strategy: str
-    summary_of_changes: str
+    risk_id: Optional[str] = None
+    target_branch: Optional[str] = "main"
+    source_branch: Optional[str] = "feature"
+    strategy_name: Optional[str] = None
+    summary: Optional[str] = None
+    compatibility_strategy: Optional[str] = None
+    summary_of_changes: Optional[str] = None
     reconciled_code: str
     unified_diff: str
+    git_apply_command: Optional[str] = None
+    why_this_resolves: Optional[str] = None
+    confidence: Optional[float] = 0.9
+    is_validated: Optional[bool] = True
+    ai_disclaimer: Optional[str] = "AI-GENERATED • REQUIRES HUMAN REVIEW • REQUIRES TESTING"
     instructions: List[str] = []
 
 class IntegrationRisk(BaseModel):
