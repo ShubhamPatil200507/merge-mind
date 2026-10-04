@@ -1,12 +1,12 @@
 """
 MergeMind FastAPI Application
-Backend server hosting the 7 Agent Pipeline, GitHub Client, Demo Engine,
+Backend server hosting the Multi-Agent Pipeline, GitHub Client, Demo Engine,
 Branch Comparison Engine, Sandboxed Test Runner, Review Center, and LLM Provider Settings.
 """
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pydantic import BaseModel
 import os
 
@@ -14,7 +14,8 @@ from app.models import (
     RepositoryAnalysis,
     AnalyzeRepoRequest,
     ReviewActionRequest,
-    ReviewStatus
+    ReviewStatus,
+    IntegrationRisk
 )
 from app.demo_data import (
     DEMO_REPO_NAME,
@@ -24,9 +25,10 @@ from app.demo_data import (
     FILE_SNAPSHOTS
 )
 from app.agents.pipeline import run_agentic_analysis
-from app.github_client import fetch_github_repository
+from app.github_client import fetch_github_repository, fetch_branch_comparison
 from app.test_runner import run_sandboxed_test, TestExecutionResult
-from app.db.database import update_risk_review, get_latest_reviews
+from app.db.database import update_risk_review, get_latest_reviews, get_audit_trail
+from app.agents.compatibility_reconciliation import validate_patch
 
 app = FastAPI(
     title="MergeMind — AI GitHub Integration Advisor API",
@@ -60,6 +62,18 @@ class SettingsUpdateRequest(BaseModel):
 class TestRunRequest(BaseModel):
     command: str
 
+class CompareBranchesRequest(BaseModel):
+    repo_url: Optional[str] = None
+    branch_a: str
+    branch_b: str
+    token: Optional[str] = None
+    use_demo: bool = False
+
+class PatchValidationRequest(BaseModel):
+    file_path: str
+    unified_diff: str
+    reconciled_code: Optional[str] = ""
+
 async def get_demo_analysis(branch_a: Optional[str] = None, branch_b: Optional[str] = None) -> RepositoryAnalysis:
     global CURRENT_ANALYSIS
     analysis = await run_agentic_analysis(
@@ -92,14 +106,14 @@ def root():
         "engine": "llm_reasoning" if RUNTIME_SETTINGS.get("api_key") else "deterministic_rule_based",
         "active_provider": RUNTIME_SETTINGS.get("provider"),
         "agents": [
-            "1. Commit Understanding Agent",
-            "2. Change Mapping Agent",
-            "3. Collision Detection Agent",
-            "4. Semantic Risk Agent",
-            "5. Risk Assessment Agent",
+            "1. AST & Normalized Code Parser Engine",
+            "2. Commit Understanding Agent",
+            "3. Change Mapping Agent",
+            "4. Collision Detection Agent (12 Categories)",
+            "5. Semantic Risk Agent (100-Point Scoring)",
             "6. Resolution Planning Agent",
             "7. Compatibility & Reconciliation Engine",
-            "8. Test Recommendation Agent"
+            "8. Test Recommendation & Sandboxed Runner"
         ]
     }
 
@@ -112,8 +126,8 @@ def health():
 @app.get("/demo", response_model=RepositoryAnalysis)
 async def demo_analysis(branch_a: Optional[str] = None, branch_b: Optional[str] = None):
     """
-    Returns the rich pre-configured demo repository with 4 developers, 4 branches,
-    18 commits, and the highlighted semantic auth-bypass collision.
+    Returns pre-configured demo repository with 4 developers, 4 branches, 18 commits,
+    and highlighted semantic collisions.
     """
     return await get_demo_analysis(branch_a, branch_b)
 
@@ -122,6 +136,7 @@ async def demo_analysis(branch_a: Optional[str] = None, branch_b: Optional[str] 
 async def analyze_repository(req: AnalyzeRepoRequest):
     """
     Runs multi-agent analysis on either the demo repository or a live GitHub repository.
+    Strictly reports failures without silent demo fallback.
     """
     if req.use_demo or not req.repo_url:
         return await get_demo_analysis(req.branch_a, req.branch_b)
@@ -129,15 +144,25 @@ async def analyze_repository(req: AnalyzeRepoRequest):
     # Live GitHub retrieval
     repo_data, error = await fetch_github_repository(req.repo_url, req.token)
     if error or not repo_data:
-        demo = await get_demo_analysis(req.branch_a, req.branch_b)
-        demo.warning_message = error or "Could not connect to live repository. Showing Demo Repository."
-        return demo
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": error or "Could not connect to live GitHub repository.",
+                "stage": "repository_ingestion",
+                "recovery_action": "Verify repository URL ('owner/repo'), provide a valid GitHub PAT for private repositories or rate limits, or select Demo Mode."
+            }
+        )
 
     commits = repo_data["commits"]
     if len(commits) < 2:
-        demo = await get_demo_analysis(req.branch_a, req.branch_b)
-        demo.warning_message = f"Repository '{repo_data['name']}' has insufficient parallel commit history. Loaded demo comparison for illustration."
-        return demo
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": f"Repository '{repo_data['name']}' has fewer than 2 commits. MergeMind requires commit history to analyze parallel branch changes.",
+                "stage": "commit_retrieval",
+                "recovery_action": "Select a repository with multiple branches or commits, or select Demo Mode."
+            }
+        )
 
     analysis = await run_agentic_analysis(
         repo_name=repo_data["name"],
@@ -149,7 +174,79 @@ async def analyze_repository(req: AnalyzeRepoRequest):
         is_demo=False,
         provider_override=RUNTIME_SETTINGS.get("provider")
     )
+    
+    global CURRENT_ANALYSIS
+    CURRENT_ANALYSIS = analysis
     return analysis
+
+@app.post("/api/compare", response_model=RepositoryAnalysis)
+@app.post("/compare", response_model=RepositoryAnalysis)
+async def compare_branches(req: CompareBranchesRequest):
+    """
+    Compares two branches specifically, computing merge base and cross-branch collisions.
+    """
+    if req.use_demo or not req.repo_url:
+        return await get_demo_analysis(req.branch_a, req.branch_b)
+
+    # Perform real branch comparison via GitHub Compare API
+    compare_data, error = await fetch_branch_comparison(
+        req.repo_url, req.branch_a, req.branch_b, req.token
+    )
+    if error or not compare_data:
+        # Fall back to analyzing repo with targeted branches
+        return await analyze_repository(AnalyzeRepoRequest(
+            repo_url=req.repo_url,
+            branch_a=req.branch_a,
+            branch_b=req.branch_b,
+            token=req.token,
+            use_demo=False
+        ))
+
+    # Ingest commits from compare API
+    repo_meta, _ = await fetch_github_repository(req.repo_url, req.token)
+    branches = repo_meta["branches"] if repo_meta else [req.branch_a, req.branch_b]
+    prs = repo_meta["pull_requests"] if repo_meta else []
+
+    commits = compare_data.get("commits", [])
+    if len(commits) < 2 and repo_meta:
+        commits = repo_meta["commits"]
+
+    analysis = await run_agentic_analysis(
+        repo_name=req.repo_url,
+        branches=branches,
+        commits=commits,
+        pull_requests=prs,
+        target_branch_a=req.branch_a,
+        target_branch_b=req.branch_b,
+        is_demo=False,
+        provider_override=RUNTIME_SETTINGS.get("provider")
+    )
+
+    global CURRENT_ANALYSIS
+    CURRENT_ANALYSIS = analysis
+    return analysis
+
+@app.get("/api/risks", response_model=List[IntegrationRisk])
+@app.get("/risks", response_model=List[IntegrationRisk])
+async def get_risks():
+    """Returns detected risks from the current active analysis."""
+    global CURRENT_ANALYSIS
+    if not CURRENT_ANALYSIS:
+        await get_demo_analysis()
+    return CURRENT_ANALYSIS.detected_risks if CURRENT_ANALYSIS else []
+
+@app.get("/api/risks/{risk_id}", response_model=IntegrationRisk)
+@app.get("/risks/{risk_id}", response_model=IntegrationRisk)
+async def get_risk_by_id(risk_id: str):
+    """Returns details for a specific detected risk."""
+    global CURRENT_ANALYSIS
+    if not CURRENT_ANALYSIS:
+        await get_demo_analysis()
+    if CURRENT_ANALYSIS:
+        for r in CURRENT_ANALYSIS.detected_risks:
+            if r.id == risk_id:
+                return r
+    raise HTTPException(status_code=404, detail=f"Risk '{risk_id}' not found.")
 
 @app.post("/api/review")
 @app.post("/review")
@@ -173,6 +270,19 @@ def review_risk(req: ReviewActionRequest):
         "new_status": req.status
     }
 
+@app.post("/api/patches/{patch_id}/validate")
+@app.post("/patches/{patch_id}/validate")
+def validate_patch_endpoint(patch_id: str, req: PatchValidationRequest):
+    """
+    Validates a compatibility patch against syntax and temporary git worktree.
+    """
+    is_valid, msg = validate_patch(req.file_path, req.unified_diff, req.reconciled_code or "")
+    return {
+        "patch_id": patch_id,
+        "is_valid": is_valid,
+        "validation_message": msg
+    }
+
 @app.post("/api/test/run", response_model=TestExecutionResult)
 @app.post("/test/run", response_model=TestExecutionResult)
 async def run_test_endpoint(req: TestRunRequest):
@@ -181,6 +291,14 @@ async def run_test_endpoint(req: TestRunRequest):
     Runs approved commands in an isolated process with zero backend secrets.
     """
     return await run_sandboxed_test(req.command)
+
+@app.get("/api/audit-trail")
+@app.get("/audit-trail")
+def audit_trail():
+    """Returns audit log of repository analyses and developer reviews from SQLite."""
+    return {
+        "audit_trail": get_audit_trail()
+    }
 
 @app.get("/api/settings")
 @app.get("/settings")
@@ -221,39 +339,4 @@ def update_settings(req: SettingsUpdateRequest):
         RUNTIME_SETTINGS["base_url"] = req.base_url.strip()
         os.environ["LLM_BASE_URL"] = req.base_url.strip()
 
-    is_active = bool(RUNTIME_SETTINGS.get("api_key")) and RUNTIME_SETTINGS.get("provider") != "mock"
-    return {
-        "success": True,
-        "provider": RUNTIME_SETTINGS["provider"],
-        "model": RUNTIME_SETTINGS["model"],
-        "engine_mode": "AI-Powered LLM Reasoning" if is_active else "Deterministic Rule-Based Analysis"
-    }
-
-@app.get("/api/file-diff")
-@app.get("/file-diff")
-def get_file_diff(filename: str, branch_a: str = "feature/auth", branch_b: str = "feature/api-refactor"):
-    """
-    Returns file content and diff between two branches for the interactive Diff Viewer.
-    """
-    if filename in FILE_SNAPSHOTS:
-        file_data = FILE_SNAPSHOTS[filename]
-        content_main = file_data.get("main", "")
-        content_a = file_data.get(branch_a, file_data.get("main", ""))
-        content_b = file_data.get(branch_b, file_data.get("main", ""))
-        return {
-            "filename": filename,
-            "branch_a": branch_a,
-            "branch_b": branch_b,
-            "content_main": content_main,
-            "content_a": content_a,
-            "content_b": content_b
-        }
-
-    return {
-        "filename": filename,
-        "branch_a": branch_a,
-        "branch_b": branch_b,
-        "content_main": f"// Baseline version of {filename}\nexport default function module() {{}}",
-        "content_a": f"// {branch_a} version of {filename}\n// Parallel modifications applied",
-        "content_b": f"// {branch_b} version of {filename}\n// Concurrent changes applied"
-    }
+    return {"status": "updated", "settings": get_settings()}

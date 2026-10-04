@@ -86,6 +86,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0d1117] border border-[#30363d] text-gray-300">
                 <FolderGit2 className="w-3.5 h-3.5 text-gray-400" />
                 <span className="text-white font-medium">{analysis.repository_name}</span>
+                {analysis.is_demo ? (
+                  <span className="ml-1 px-1.5 py-0.5 rounded bg-purple-950/80 border border-purple-800 text-[10px] text-purple-300 font-bold">
+                    DEMO MODE
+                  </span>
+                ) : (
+                  <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-800 text-[10px] text-emerald-300 font-bold">
+                    LIVE REPO
+                  </span>
+                )}
               </div>
 
               <div className="hidden lg:flex items-center gap-2.5 px-2.5 py-1 rounded bg-[#0d1117] border border-[#30363d] text-gray-400">

@@ -70,7 +70,11 @@ export function App() {
         })
       });
 
-      if (!res.ok) throw new Error(`HTTP ${res.status}: Analysis request failed`);
+      if (!res.ok) {
+        const errPayload = await res.json().catch(() => ({}));
+        const detailMsg = errPayload?.detail?.error || (typeof errPayload?.detail === 'string' ? errPayload.detail : `HTTP ${res.status}: Repository analysis failed`);
+        throw new Error(detailMsg);
+      }
       const data: RepositoryAnalysis = await res.json();
       setAnalysis(data);
       if (data.detected_risks.length > 0) {
@@ -139,17 +143,24 @@ export function App() {
       {/* Main Content Area */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 flex-1">
         {/* Error notification banner if any */}
+        {/* Error notification banner if any */}
         {error && (
-          <div className="mb-4 p-3.5 rounded-lg bg-red-950/70 border border-red-800 text-red-300 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
-            <div className="flex items-start sm:items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5 sm:mt-0" />
-              <span>{error}</span>
+          <div className="mb-4 p-4 rounded-lg bg-red-950/80 border border-red-700 text-red-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono shadow-lg">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold text-red-300 text-sm">LIVE REPOSITORY ANALYSIS FAILED</div>
+                <div className="mt-1 text-gray-300 font-sans leading-relaxed">{error}</div>
+              </div>
             </div>
             <button
-              onClick={() => loadDemoRepository()}
-              className="px-3 py-1 rounded bg-red-900/90 hover:bg-red-800 text-white font-medium text-xs transition-colors shrink-0 self-start sm:self-auto"
+              onClick={() => {
+                setError(null);
+                loadDemoRepository();
+              }}
+              className="px-3.5 py-1.5 rounded bg-red-800 hover:bg-red-700 text-white font-medium text-xs transition-colors shrink-0 self-start sm:self-auto border border-red-600"
             >
-              Load Demo Repository
+              Switch to Demo Mode
             </button>
           </div>
         )}

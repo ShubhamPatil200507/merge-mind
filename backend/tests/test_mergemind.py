@@ -1,15 +1,16 @@
 import pytest
 import os
 import json
-from app.parsers.ast_parser import parse_source_file, NormalizedAST
+from app.parsers.ast_parser import parse_source_file, NormalizedFile, NormalizedSymbol
 from app.agents.collision_detection import detect_collisions, CollisionType
+from app.agents.compatibility_reconciliation import validate_patch, generate_compatibility_patch
 from app.llm.mock_provider import RuleBasedProvider
 from app.llm.openai_provider import SYSTEM_INJECTION_DEFENSE_PROMPT
 from app.test_runner import run_sandboxed_test
 from app.models import (
     CommitInfo, CommitUnderstanding, ChangeMap, RiskLevel
 )
-from app.db.database import init_db, update_risk_review, get_latest_reviews, save_analysis
+from app.db.database import init_db, update_risk_review, get_latest_reviews, save_analysis, get_audit_trail
 
 def test_ast_python_parsing():
     py_code = """
@@ -32,7 +33,8 @@ class UserManager:
     assert any("list_users" in f for f in result.functions)
     assert any("delete_user" in f for f in result.functions)
     assert "UserManager" in result.classes
-    assert any("/api/v1/users" in api for api in result.apis)
+    assert any("/api/v1/users" in api for api in result.routes)
+    assert len(result.symbols) >= 2
 
 def test_ast_javascript_parsing():
     js_code = """
@@ -54,7 +56,8 @@ class AuthService {
     result = parse_source_file("src/auth.js", js_code)
     assert any("authenticateSession" in f for f in result.functions)
     assert "AuthService" in result.classes
-    assert any("/login" in api for api in result.apis)
+    assert any("/login" in api for api in result.routes)
+    assert "authenticateSession" in result.security_sensitive_symbols
 
 def test_manifest_parsing():
     pkg_json = json.dumps({
@@ -137,6 +140,62 @@ def test_collision_detection_structural():
         or CollisionType.DIRECT_FILE in types
     )
 
+def test_execution_order_collision_detection():
+    commits = [
+        CommitInfo(
+            sha="c_auth",
+            message="add strict JWT auth middleware",
+            author="devSec",
+            timestamp="2026-10-01",
+            branch="feature/auth",
+            files_changed=["server.js"],
+            diff_snippet="app.use('/v1', authMiddleware);"
+        ),
+        CommitInfo(
+            sha="c_pipe",
+            message="refactor request handler dispatch",
+            author="devArch",
+            timestamp="2026-10-02",
+            branch="feature/api-refactor",
+            files_changed=["server.js"],
+            diff_snippet="app.use('/v1', (req, res, next) => handleRequest(req, res, next));"
+        )
+    ]
+    change_maps = {
+        "c_auth": ChangeMap(sha="c_auth", branch="feature/auth", files_changed=["server.js"]),
+        "c_pipe": ChangeMap(sha="c_pipe", branch="feature/api-refactor", files_changed=["server.js"])
+    }
+    understandings = {
+        "c_auth": CommitUnderstanding(sha="c_auth", branch="feature/auth", intent="Security middleware", category="security", affected_components=["auth"], risk_level=RiskLevel.HIGH, confidence=0.95, inferred_reasoning="Adds authMiddleware"),
+        "c_pipe": CommitUnderstanding(sha="c_pipe", branch="feature/api-refactor", intent="Request handler pipeline", category="refactoring", affected_components=["pipeline"], risk_level=RiskLevel.MEDIUM, confidence=0.9, inferred_reasoning="Adds handleRequest")
+    }
+
+    collisions = detect_collisions(commits, understandings, change_maps, "feature/auth", "feature/api-refactor")
+    types = [c.collision_type for c in collisions]
+    assert CollisionType.EXECUTION_ORDER in types or CollisionType.SEMANTIC in types
+
+    exec_col = next(c for c in collisions if c.collision_type in [CollisionType.EXECUTION_ORDER, CollisionType.SEMANTIC])
+    patch = generate_compatibility_patch(exec_col)
+    assert patch is not None
+    assert patch.is_validated is True
+    assert "authMiddleware" in patch.reconciled_code
+
+def test_patch_validation():
+    valid_diff = """--- a/server.js
++++ b/server.js
+@@ -1,3 +1,4 @@
+ const express = require('express');
++const auth = require('./auth');
+ const app = express();
+"""
+    is_valid, msg = validate_patch("server.js", valid_diff, "const express = require('express');")
+    assert is_valid is True
+
+    invalid_diff = "not a real diff"
+    is_invalid, msg_err = validate_patch("server.js", invalid_diff, "")
+    assert is_invalid is False
+    assert "Malformed" in msg_err
+
 def test_mock_provider_honesty():
     import asyncio
     provider = RuleBasedProvider()
@@ -180,6 +239,9 @@ def test_database_review_lifecycle():
     assert reviews[test_risk_id]["status"] == "approved"
     assert reviews[test_risk_id]["notes"] == "Looks safe after verification"
 
+    trail = get_audit_trail()
+    assert len(trail) >= 1
+
 def test_api_endpoints():
     from starlette.testclient import TestClient
     from app.main import app
@@ -203,3 +265,19 @@ def test_api_endpoints():
     assert forbidden_res.status_code == 200
     assert forbidden_res.json()["status"] == "forbidden"
 
+    # 4. Patch validation endpoint
+    patch_res = client.post("/api/patches/p1/validate", json={
+        "file_path": "server.js",
+        "unified_diff": "--- a/s.js\n+++ b/s.js\n@@ -1,1 +1,2 @@\n+line",
+        "reconciled_code": "code"
+    })
+    assert patch_res.status_code == 200
+    assert patch_res.json()["is_valid"] is True
+
+    # 5. Non-silent failure on invalid live repository
+    invalid_repo_res = client.post("/api/analyze", json={
+        "repo_url": "invalid-non-existent-user-12345/no-such-repo-99999",
+        "use_demo": False
+    })
+    assert invalid_repo_res.status_code == 400
+    assert "LIVE ANALYSIS FAILED" in str(invalid_repo_res.json()) or "GitHub API" in str(invalid_repo_res.json())

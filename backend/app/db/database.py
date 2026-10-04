@@ -207,3 +207,21 @@ def get_latest_reviews() -> Dict[str, Dict[str, Any]]:
         }
     conn.close()
     return reviews
+
+def get_audit_trail() -> List[Dict[str, Any]]:
+    """Retrieves full audit log of analyses and risk reviews from SQLite."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+    SELECT 
+        r.id as risk_id, r.title, r.collision_type, r.risk_level, 
+        r.review_status, r.review_notes, r.reviewed_at,
+        a.id as analysis_id, a.repository_name, a.analysis_engine, a.analyzed_at
+    FROM risks r
+    JOIN analyses a ON r.analysis_id = a.id
+    ORDER BY r.reviewed_at DESC, a.analyzed_at DESC
+    LIMIT 50
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
