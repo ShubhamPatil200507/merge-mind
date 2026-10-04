@@ -1,12 +1,12 @@
 """
 MergeMind Secure Test Runner Engine
-Executes approved test commands in an isolated subprocess with strict security controls:
-- Command allowlist
+Executes approved test commands in a restricted process environment:
+- Command allowlist validation
+- Argument validation & shell-injection prevention
 - Environment stripping (zero backend secrets)
 - Hard timeouts (10 seconds)
 - Process termination on timeout
-- Never executes arbitrary untrusted host commands
-- Explicit 'unavailable in this environment' status when sandbox execution is not permitted
+- Honest reporting: clearly identifies mode as 'restricted_host_execution' rather than claiming full container isolation when running on the host.
 """
 
 import asyncio
@@ -29,19 +29,21 @@ ALLOWED_COMMAND_PREFIXES = [
 
 class TestExecutionResult(BaseModel):
     command: str
-    status: str # "completed", "failed", "timeout", "sandboxed_unavailable", "forbidden"
+    status: str  # "completed", "failed", "timeout", "unavailable", "forbidden"
     exit_code: Optional[int] = None
     stdout: str
     stderr: str
     duration_ms: int
-    is_sandboxed: bool = True
+    is_sandboxed: bool = False
+    execution_mode: str = "restricted_host_execution"
     disclaimer: str
 
 async def run_sandboxed_test(command: str, cwd: Optional[str] = None) -> TestExecutionResult:
     """
     Executes an approved test command under strict security constraints.
+    Accurately reports restricted_host_execution instead of claiming container sandbox.
     """
-    start_time = time.time()
+    start_time = time.perf_counter()
     clean_cmd = command.strip()
 
     # 1. Security Check: Command allowlist validation
@@ -54,8 +56,9 @@ async def run_sandboxed_test(command: str, cwd: Optional[str] = None) -> TestExe
             stdout="",
             stderr=f"Security Policy: Command '{clean_cmd}' is not in the approved test runner allowlist. Allowed runners: {', '.join(ALLOWED_COMMAND_PREFIXES)}.",
             duration_ms=0,
-            is_sandboxed=True,
-            disclaimer="Arbitrary command execution blocked by MergeMind sandbox policy."
+            is_sandboxed=False,
+            execution_mode="restricted_host_execution",
+            disclaimer="Arbitrary command execution blocked by MergeMind policy."
         )
 
     # 2. Check for shell injection characters
@@ -68,8 +71,9 @@ async def run_sandboxed_test(command: str, cwd: Optional[str] = None) -> TestExe
             stdout="",
             stderr="Security Policy: Command contains shell chaining or redirection operators and was rejected.",
             duration_ms=0,
-            is_sandboxed=True,
-            disclaimer="Shell operator chaining blocked by MergeMind sandbox policy."
+            is_sandboxed=False,
+            execution_mode="restricted_host_execution",
+            disclaimer="Shell operator chaining blocked by MergeMind policy."
         )
 
     # 3. Environment sanitization: Strip API keys and tokens
@@ -95,7 +99,7 @@ async def run_sandboxed_test(command: str, cwd: Optional[str] = None) -> TestExe
 
         try:
             stdout_data, stderr_data = await asyncio.wait_for(proc.communicate(), timeout=10.0)
-            duration_ms = int((time.time() - start_time) * 1000)
+            duration_ms = int((time.perf_counter() - start_time) * 1000)
             exit_code = proc.returncode
 
             stdout_str = stdout_data.decode("utf-8", errors="replace")[:3000]
@@ -108,8 +112,9 @@ async def run_sandboxed_test(command: str, cwd: Optional[str] = None) -> TestExe
                 stdout=stdout_str,
                 stderr=stderr_str,
                 duration_ms=duration_ms,
-                is_sandboxed=True,
-                disclaimer="Real sandboxed test execution completed with zero backend credentials exposed."
+                is_sandboxed=False,
+                execution_mode="restricted_host_execution",
+                disclaimer="Restricted host execution with command allowlist, stripped credentials, and 10s timeout."
             )
 
         except asyncio.TimeoutError:
@@ -122,21 +127,22 @@ async def run_sandboxed_test(command: str, cwd: Optional[str] = None) -> TestExe
                 status="timeout",
                 exit_code=124,
                 stdout="",
-                stderr="Execution terminated: Test process exceeded the strict 10-second sandbox timeout.",
+                stderr="Execution terminated: Test process exceeded the strict 10-second timeout.",
                 duration_ms=10000,
-                is_sandboxed=True,
-                disclaimer="Runaway process terminated by sandbox timeout."
+                is_sandboxed=False,
+                execution_mode="restricted_host_execution",
+                disclaimer="Runaway process terminated by execution timeout."
             )
 
     except Exception as e:
-        # If execution fails because runner binary is missing or sandbox unavailable
         return TestExecutionResult(
             command=clean_cmd,
-            status="sandboxed_unavailable",
+            status="unavailable",
             exit_code=-1,
             stdout="",
             stderr=f"Test runner unavailable in this host environment: {str(e)}. Please run this command in your local repository terminal.",
-            duration_ms=int((time.time() - start_time) * 1000),
-            is_sandboxed=True,
-            disclaimer="MergeMind honestly reports test runner availability rather than fabricating simulated test passes."
+            duration_ms=int((time.perf_counter() - start_time) * 1000),
+            is_sandboxed=False,
+            execution_mode="restricted_host_execution",
+            disclaimer="MergeMind reports test runner availability truthfully rather than fabricating simulated passes."
         )

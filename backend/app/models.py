@@ -65,6 +65,33 @@ class ChangeMap(BaseModel):
     frontend_components: List[str] = []
     backend_services: List[str] = []
 
+class FileSnapshot(BaseModel):
+    path: str
+    language: str
+    content: str
+    blob_sha: Optional[str] = None
+    size: Optional[int] = None
+    lines: Optional[int] = None
+
+class RepositorySnapshot(BaseModel):
+    repository: str
+    branch: str
+    commit_sha: str
+    parent_sha: Optional[str] = None
+    merge_base_sha: Optional[str] = None
+    files: Dict[str, FileSnapshot] = Field(default_factory=dict)
+
+class BranchComparison(BaseModel):
+    base_branch: str
+    target_branch: str
+    merge_base: str
+    changed_files_a: List[str] = Field(default_factory=list)
+    changed_files_b: List[str] = Field(default_factory=list)
+    commits_a: List[CommitInfo] = Field(default_factory=list)
+    commits_b: List[CommitInfo] = Field(default_factory=list)
+    files_a: Dict[str, FileSnapshot] = Field(default_factory=dict)
+    files_b: Dict[str, FileSnapshot] = Field(default_factory=dict)
+
 class EvidenceItem(BaseModel):
     commit_sha: str
     commit_message: str

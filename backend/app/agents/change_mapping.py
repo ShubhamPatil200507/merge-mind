@@ -2,20 +2,25 @@
 Agent 2 — Change Mapping Agent
 Purpose: Create a structured normalized AST representation of every change.
 Parses functions, classes, APIs, dependencies, configurations, schemas, and tests
-using language-aware AST parsers.
+using language-aware AST parsers on real file contents or commit diffs.
 """
 
-from typing import List, Set
+from typing import List, Set, Dict, Optional
 from app.models import CommitInfo, ChangeMap
 from app.parsers.ast_parser import parse_source_file
 
-def map_commit_changes(commit: CommitInfo) -> ChangeMap:
+def map_commit_changes(
+    commit: CommitInfo,
+    file_snapshots: Optional[Dict[str, str]] = None
+) -> ChangeMap:
     """
     Parses commit diff and touched files into a structured, normalized ChangeMap.
+    Uses real file contents from snapshots when available, falling back to diff snippets.
     Uses AST analysis for Python and tokenized tree parsing for JavaScript / TypeScript.
     """
     files = commit.files_changed or []
     diff = commit.diff_snippet or ""
+    snapshots = file_snapshots or {}
 
     all_functions: Set[str] = set()
     all_classes: Set[str] = set()
@@ -29,7 +34,9 @@ def map_commit_changes(commit: CommitInfo) -> ChangeMap:
 
     # 1. Parse each changed file using language-specific AST engine
     for f in files:
-        ast_result = parse_source_file(f, diff)
+        # Use full file content from snapshot if present, else diff snippet
+        content_to_parse = snapshots.get(f, diff)
+        ast_result = parse_source_file(f, content_to_parse)
         all_functions.update(ast_result.functions)
         all_classes.update(ast_result.classes)
         all_apis.update(ast_result.apis)
@@ -46,10 +53,11 @@ def map_commit_changes(commit: CommitInfo) -> ChangeMap:
             all_configs.add(f)
 
     # 2. Extract AST directly from diff content for touched blocks
-    diff_ast = parse_source_file("diff_snippet.js", diff)
-    all_functions.update(diff_ast.functions)
-    all_classes.update(diff_ast.classes)
-    all_apis.update(diff_ast.apis)
+    if diff:
+        diff_ast = parse_source_file("diff_snippet.js", diff)
+        all_functions.update(diff_ast.functions)
+        all_classes.update(diff_ast.classes)
+        all_apis.update(diff_ast.apis)
 
     return ChangeMap(
         sha=commit.sha,

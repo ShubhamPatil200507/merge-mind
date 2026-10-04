@@ -56,6 +56,27 @@ class RawCollision:
         self.line_ranges = line_ranges or {}
         self.symbols = symbols or []
 
+def _safe_sha(c_list: List[CommitInfo], branch: str) -> str:
+    if c_list and c_list[0].sha:
+        return c_list[0].sha
+    clean_b = re.sub(r'[^a-zA-Z0-9_-]', '', branch or 'branch')
+    return f"{clean_b[:7]}_HEAD"
+
+def _safe_author(c_list: List[CommitInfo], branch: str) -> str:
+    if c_list and c_list[0].author:
+        return c_list[0].author
+    return f"Contributor ({branch})"
+
+def _safe_msg(c_list: List[CommitInfo], default_msg: str) -> str:
+    if c_list and c_list[0].message:
+        return c_list[0].message
+    return default_msg
+
+def _safe_snippet(c_list: List[CommitInfo], fallback_symbol: str) -> str:
+    if c_list and c_list[0].diff_snippet:
+        return c_list[0].diff_snippet[:220]
+    return fallback_symbol
+
 def detect_collisions(
     commits: List[CommitInfo],
     understandings: Dict[str, CommitUnderstanding],
@@ -136,15 +157,15 @@ def detect_collisions(
         # ------------------------------------------------------------------
         has_auth_change = any(
             re.search(r"(auth|jwt|token|bearer|passport|verify|session)", f, re.I) for f in files_a
-        ) or re.search(r"(jsonwebtoken|jwt\.verify|authMiddleware|passport)", combined_diff_a, re.I)
+        ) or re.search(r"(auth|jwt|token|bearer|passport|verify|session)", combined_diff_a, re.I) or any("auth" in c.message.lower() for c in c_list_a)
 
         has_pipeline_change = any(
             re.search(r"(handler|router|pipeline|server|app|dispatch)", f, re.I) for f in files_b
-        ) or re.search(r"(handleRequest|app\.use|router\.use|dispatch)", combined_diff_b, re.I)
+        ) or re.search(r"(handleRequest|app\.use|router\.use|dispatch|notify|pipeline)", combined_diff_b, re.I) or any("pipeline" in c.message.lower() or "dispatch" in c.message.lower() for c in c_list_b)
 
         if not (has_auth_change and has_pipeline_change):
-            has_auth_change_b = any(re.search(r"(auth|jwt|token|bearer|passport|verify|session)", f, re.I) for f in files_b) or re.search(r"(jsonwebtoken|jwt\.verify|authMiddleware)", combined_diff_b, re.I)
-            has_pipeline_change_a = any(re.search(r"(handler|router|pipeline|server|app|dispatch)", f, re.I) for f in files_a) or re.search(r"(handleRequest|app\.use|router\.use)", combined_diff_a, re.I)
+            has_auth_change_b = any(re.search(r"(auth|jwt|token|bearer|passport|verify|session)", f, re.I) for f in files_b) or re.search(r"(auth|jwt|token|bearer|passport|verify|session)", combined_diff_b, re.I) or any("auth" in c.message.lower() for c in c_list_b)
+            has_pipeline_change_a = any(re.search(r"(handler|router|pipeline|server|app|dispatch)", f, re.I) for f in files_a) or re.search(r"(handleRequest|app\.use|router\.use|dispatch|notify|pipeline)", combined_diff_a, re.I) or any("pipeline" in c.message.lower() or "dispatch" in c.message.lower() for c in c_list_a)
             if has_auth_change_b and has_pipeline_change_a:
                 b_a, b_b = b_b, b_a
                 c_list_a, c_list_b = c_list_b, c_list_a
@@ -163,7 +184,7 @@ def detect_collisions(
                         author=c.author,
                         branch=b_a,
                         changed_files=c.files_changed or [],
-                        snippet_or_symbol=c.diff_snippet[:220] if c.diff_snippet else "app.use(authMiddleware);",
+                        snippet_or_symbol=c.diff_snippet[:220] if c.diff_snippet else (c.files_changed[0] if c.files_changed else "authMiddleware"),
                         observation=f"Commit in {b_a} mounts authentication middleware to secure protected routes."
                     ))
             for c in c_list_b:
@@ -174,7 +195,7 @@ def detect_collisions(
                         author=c.author,
                         branch=b_b,
                         changed_files=c.files_changed or [],
-                        snippet_or_symbol=c.diff_snippet[:220] if c.diff_snippet else "app.use(handleRequest);",
+                        snippet_or_symbol=c.diff_snippet[:220] if c.diff_snippet else (c.files_changed[0] if c.files_changed else "handleRequest"),
                         observation=f"Commit in {b_b} registers request dispatchers, mounting route execution prior to auth."
                     ))
 
@@ -247,22 +268,22 @@ def detect_collisions(
         if overlap_apis or ("routes/user.js" in files_a.union(files_b) and api_files_a and api_files_b):
             evidence = [
                 EvidenceItem(
-                    commit_sha=c_list_a[0].sha if c_list_a else "shaA",
-                    commit_message=c_list_a[0].message if c_list_a else "API route update",
-                    author=c_list_a[0].author if c_list_a else "Dev A",
+                    commit_sha=_safe_sha(c_list_a, b_a),
+                    commit_message=_safe_msg(c_list_a, "API route update"),
+                    author=_safe_author(c_list_a, b_a),
                     branch=b_a,
                     changed_files=api_files_a or list(files_a)[:2],
-                    snippet_or_symbol="GET /v1/users/:id -> { userId: number }",
-                    observation="Endpoint response contract definition returns numeric identifier."
+                    snippet_or_symbol=_safe_snippet(c_list_a, api_files_a[0] if api_files_a else "api_route"),
+                    observation="Endpoint response contract definition modified in branch."
                 ),
                 EvidenceItem(
-                    commit_sha=c_list_b[0].sha if c_list_b else "shaB",
-                    commit_message=c_list_b[0].message if c_list_b else "API client refactor",
-                    author=c_list_b[0].author if c_list_b else "Dev B",
+                    commit_sha=_safe_sha(c_list_b, b_b),
+                    commit_message=_safe_msg(c_list_b, "API client update"),
+                    author=_safe_author(c_list_b, b_b),
                     branch=b_b,
                     changed_files=api_files_b or list(files_b)[:2],
-                    snippet_or_symbol="response.data.user_id (UUID format)",
-                    observation="Consumer deserializes `user_id` as string UUID."
+                    snippet_or_symbol=_safe_snippet(c_list_b, api_files_b[0] if api_files_b else "api_client"),
+                    observation="Consumer deserialization and contract schema updated in parallel."
                 )
             ]
             collision_counter += 1
@@ -274,7 +295,7 @@ def detect_collisions(
                 branch_b=b_b,
                 commits_a=[c.sha for c in c_list_a],
                 commits_b=[c.sha for c in c_list_b],
-                affected_files=list(set(api_files_a + api_files_b))[:3] or ["routes/user.js"],
+                affected_files=list(set(api_files_a + api_files_b))[:3] or (list(files_a)[:1] if files_a else ["routes/user.js"]),
                 affected_components=["user controller", "profile API", "HTTP contract serializer"],
                 evidence=evidence,
                 problem_description=f"Branch '{b_a}' and '{b_b}' diverge on field naming (`userId` vs `user_id`) and types.",
@@ -289,21 +310,21 @@ def detect_collisions(
         if dep_files or overlap_deps:
             evidence = [
                 EvidenceItem(
-                    commit_sha=c_list_a[0].sha if c_list_a else "shaA",
-                    commit_message=c_list_a[0].message if c_list_a else "Bump dependencies",
-                    author=c_list_a[0].author if c_list_a else "Dev A",
+                    commit_sha=_safe_sha(c_list_a, b_a),
+                    commit_message=_safe_msg(c_list_a, "Bump dependencies"),
+                    author=_safe_author(c_list_a, b_a),
                     branch=b_a,
                     changed_files=dep_files or ["package.json"],
-                    snippet_or_symbol=dep_files[0] if dep_files else "dependencies",
+                    snippet_or_symbol=_safe_snippet(c_list_a, dep_files[0] if dep_files else "dependencies"),
                     observation="Modifies version constraints in dependency manifest."
                 ),
                 EvidenceItem(
-                    commit_sha=c_list_b[0].sha if c_list_b else "shaB",
-                    commit_message=c_list_b[0].message if c_list_b else "Add library",
-                    author=c_list_b[0].author if c_list_b else "Dev B",
+                    commit_sha=_safe_sha(c_list_b, b_b),
+                    commit_message=_safe_msg(c_list_b, "Add or update library"),
+                    author=_safe_author(c_list_b, b_b),
                     branch=b_b,
                     changed_files=dep_files or ["package.json"],
-                    snippet_or_symbol=dep_files[0] if dep_files else "dependencies",
+                    snippet_or_symbol=_safe_snippet(c_list_b, dep_files[0] if dep_files else "dependencies"),
                     observation="Concurrently alters lockfile/manifest with divergent requirements."
                 )
             ]
@@ -331,21 +352,21 @@ def detect_collisions(
         if overlap_schemas or (schema_files_a and schema_files_b):
             evidence = [
                 EvidenceItem(
-                    commit_sha=c_list_a[0].sha if c_list_a else "shaA",
-                    commit_message=c_list_a[0].message if c_list_a else "Add column migration",
-                    author=c_list_a[0].author if c_list_a else "Dev A",
+                    commit_sha=_safe_sha(c_list_a, b_a),
+                    commit_message=_safe_msg(c_list_a, "Database schema migration"),
+                    author=_safe_author(c_list_a, b_a),
                     branch=b_a,
-                    changed_files=schema_files_a or ["schema.prisma"],
-                    snippet_or_symbol=schema_files_a[0] if schema_files_a else "database schema",
+                    changed_files=schema_files_a or list(files_a)[:1],
+                    snippet_or_symbol=_safe_snippet(c_list_a, schema_files_a[0] if schema_files_a else "database schema"),
                     observation="Introduces database schema modifications or migration file."
                 ),
                 EvidenceItem(
-                    commit_sha=c_list_b[0].sha if c_list_b else "shaB",
-                    commit_message=c_list_b[0].message if c_list_b else "Modify model fields",
-                    author=c_list_b[0].author if c_list_b else "Dev B",
+                    commit_sha=_safe_sha(c_list_b, b_b),
+                    commit_message=_safe_msg(c_list_b, "Modify model or migration"),
+                    author=_safe_author(c_list_b, b_b),
                     branch=b_b,
-                    changed_files=schema_files_b or ["schema.prisma"],
-                    snippet_or_symbol=schema_files_b[0] if schema_files_b else "database schema",
+                    changed_files=schema_files_b or list(files_b)[:1],
+                    snippet_or_symbol=_safe_snippet(c_list_b, schema_files_b[0] if schema_files_b else "database schema"),
                     observation="Concurrent migration or model alteration created on parallel branch."
                 )
             ]
@@ -384,21 +405,21 @@ def detect_collisions(
                 affected_components=["configuration engine", "environment variables", "runtime settings"],
                 evidence=[
                     EvidenceItem(
-                        commit_sha=c_list_a[0].sha if c_list_a else "shaA",
-                        commit_message=c_list_a[0].message if c_list_a else "Update config",
-                        author=c_list_a[0].author if c_list_a else "Dev A",
+                        commit_sha=_safe_sha(c_list_a, b_a),
+                        commit_message=_safe_msg(c_list_a, "Update config"),
+                        author=_safe_author(c_list_a, b_a),
                         branch=b_a,
-                        changed_files=config_files or ["config.py"],
-                        snippet_or_symbol="CONFIG_SETTING_A",
+                        changed_files=config_files or [list(files_a)[0] if files_a else "config.py"],
+                        snippet_or_symbol=_safe_snippet(c_list_a, config_files[0] if config_files else "config_setting_a"),
                         observation="Updates environment variable definition or toggle flag."
                     ),
                     EvidenceItem(
-                        commit_sha=c_list_b[0].sha if c_list_b else "shaB",
-                        commit_message=c_list_b[0].message if c_list_b else "Refactor settings",
-                        author=c_list_b[0].author if c_list_b else "Dev B",
+                        commit_sha=_safe_sha(c_list_b, b_b),
+                        commit_message=_safe_msg(c_list_b, "Refactor settings"),
+                        author=_safe_author(c_list_b, b_b),
                         branch=b_b,
-                        changed_files=config_files or ["config.py"],
-                        snippet_or_symbol="CONFIG_SETTING_B",
+                        changed_files=config_files or [list(files_b)[0] if files_b else "config.py"],
+                        snippet_or_symbol=_safe_snippet(c_list_b, config_files[0] if config_files else "config_setting_b"),
                         observation="Alters default configuration assumptions in parallel."
                     )
                 ],
@@ -428,21 +449,21 @@ def detect_collisions(
                     affected_components=["state machine", "workflow engine", "entity lifecycle"],
                     evidence=[
                         EvidenceItem(
-                            commit_sha=c_list_a[0].sha if c_list_a else "shaA",
-                            commit_message=c_list_a[0].message if c_list_a else "State transition A",
-                            author=c_list_a[0].author if c_list_a else "Dev A",
+                            commit_sha=_safe_sha(c_list_a, b_a),
+                            commit_message=_safe_msg(c_list_a, "State transition update"),
+                            author=_safe_author(c_list_a, b_a),
                             branch=b_a,
                             changed_files=list(files_a)[:2],
-                            snippet_or_symbol=f"status = '{state_a_val}'",
+                            snippet_or_symbol=_safe_snippet(c_list_a, f"status = '{state_a_val}'"),
                             observation=f"Transitions entity directly to state '{state_a_val}'."
                         ),
                         EvidenceItem(
-                            commit_sha=c_list_b[0].sha if c_list_b else "shaB",
-                            commit_message=c_list_b[0].message if c_list_b else "State transition B",
-                            author=c_list_b[0].author if c_list_b else "Dev B",
+                            commit_sha=_safe_sha(c_list_b, b_b),
+                            commit_message=_safe_msg(c_list_b, "State lifecycle update"),
+                            author=_safe_author(c_list_b, b_b),
                             branch=b_b,
                             changed_files=list(files_b)[:2],
-                            snippet_or_symbol=f"status = '{state_b_val}'",
+                            snippet_or_symbol=_safe_snippet(c_list_b, f"status = '{state_b_val}'"),
                             observation=f"Assumes lifecycle flow transitions via '{state_b_val}'."
                         )
                     ],
@@ -465,25 +486,25 @@ def detect_collisions(
                 branch_b=b_b,
                 commits_a=[c.sha for c in c_list_a],
                 commits_b=[c.sha for c in c_list_b],
-                affected_files=test_files_a or test_files_b or ["tests/unit.test.ts"],
+                affected_files=test_files_a or test_files_b or (list(files_a)[:1] if files_a else ["tests/unit.test.ts"]),
                 affected_components=["test harness", "CI verification", "unit test suite"],
                 evidence=[
                     EvidenceItem(
-                        commit_sha=c_list_a[0].sha if c_list_a else "shaA",
-                        commit_message=c_list_a[0].message if c_list_a else "Test updates",
-                        author=c_list_a[0].author if c_list_a else "Dev A",
+                        commit_sha=_safe_sha(c_list_a, b_a),
+                        commit_message=_safe_msg(c_list_a, "Test assertion updates"),
+                        author=_safe_author(c_list_a, b_a),
                         branch=b_a,
                         changed_files=test_files_a or list(files_a)[:1],
-                        snippet_or_symbol="expect(res.status).toBe(200)",
-                        observation="Specifies assertions based on branch A's updated contracts."
+                        snippet_or_symbol=_safe_snippet(c_list_a, test_files_a[0] if test_files_a else "assertions"),
+                        observation="Specifies assertions based on updated branch contracts."
                     ),
                     EvidenceItem(
-                        commit_sha=c_list_b[0].sha if c_list_b else "shaB",
-                        commit_message=c_list_b[0].message if c_list_b else "Route changes",
-                        author=c_list_b[0].author if c_list_b else "Dev B",
+                        commit_sha=_safe_sha(c_list_b, b_b),
+                        commit_message=_safe_msg(c_list_b, "Route or contract changes"),
+                        author=_safe_author(c_list_b, b_b),
                         branch=b_b,
                         changed_files=api_files_b or list(files_b)[:1],
-                        snippet_or_symbol="return res.status(201)",
+                        snippet_or_symbol=_safe_snippet(c_list_b, api_files_b[0] if api_files_b else "response"),
                         observation="Modifies response contract without synchronizing test assertions."
                     )
                 ],
@@ -510,12 +531,12 @@ def detect_collisions(
                 affected_components=["database layer", "query batcher", "event loop"],
                 evidence=[
                     EvidenceItem(
-                        commit_sha=c_list_a[0].sha if c_list_a else "shaA",
-                        commit_message=c_list_a[0].message if c_list_a else "Add loop fetch",
-                        author=c_list_a[0].author if c_list_a else "Dev A",
+                        commit_sha=_safe_sha(c_list_a, b_a),
+                        commit_message=_safe_msg(c_list_a, "Add loop operation"),
+                        author=_safe_author(c_list_a, b_a),
                         branch=b_a,
                         changed_files=list(files_a)[:1],
-                        snippet_or_symbol="users.map(async u => await fetchProfile(u.id))",
+                        snippet_or_symbol=_safe_snippet(c_list_a, "unbatched_query_loop"),
                         observation="Introduces unbatched query execution inside array mapping."
                     )
                 ],
@@ -542,21 +563,21 @@ def detect_collisions(
                 affected_components=["access control", "RBAC policy", "authorization boundary"],
                 evidence=[
                     EvidenceItem(
-                        commit_sha=c_list_a[0].sha if c_list_a else "shaA",
-                        commit_message=c_list_a[0].message if c_list_a else "Update RBAC",
-                        author=c_list_a[0].author if c_list_a else "Dev A",
+                        commit_sha=_safe_sha(c_list_a, b_a),
+                        commit_message=_safe_msg(c_list_a, "Update RBAC"),
+                        author=_safe_author(c_list_a, b_a),
                         branch=b_a,
                         changed_files=list(files_a)[:2],
-                        snippet_or_symbol="requireRole('admin')",
+                        snippet_or_symbol=_safe_snippet(c_list_a, "role_requirement"),
                         observation="Updates role requirements in policy module."
                     ),
                     EvidenceItem(
-                        commit_sha=c_list_b[0].sha if c_list_b else "shaB",
-                        commit_message=c_list_b[0].message if c_list_b else "Add permission checks",
-                        author=c_list_b[0].author if c_list_b else "Dev B",
+                        commit_sha=_safe_sha(c_list_b, b_b),
+                        commit_message=_safe_msg(c_list_b, "Add permission checks"),
+                        author=_safe_author(c_list_b, b_b),
                         branch=b_b,
                         changed_files=list(files_b)[:2],
-                        snippet_or_symbol="hasPermission('user:write')",
+                        snippet_or_symbol=_safe_snippet(c_list_b, "permission_check"),
                         observation="Concurrently adds permission checks in endpoint handlers."
                     )
                 ],
@@ -582,22 +603,22 @@ def detect_collisions(
                 affected_components=[f.split('/')[-1] for f in direct_files[:3]],
                 evidence=[
                     EvidenceItem(
-                        commit_sha=c_list_a[0].sha if c_list_a else "shaA",
-                        commit_message=c_list_a[0].message if c_list_a else "Edit file",
-                        author=c_list_a[0].author if c_list_a else "Dev A",
+                        commit_sha=_safe_sha(c_list_a, b_a),
+                        commit_message=_safe_msg(c_list_a, "Edit file"),
+                        author=_safe_author(c_list_a, b_a),
                         branch=b_a,
                         changed_files=direct_files,
-                        snippet_or_symbol=direct_files[0],
-                        observation="Modified lines in branch A."
+                        snippet_or_symbol=_safe_snippet(c_list_a, direct_files[0]),
+                        observation=f"Modified lines in {direct_files[0]} on {b_a}."
                     ),
                     EvidenceItem(
-                        commit_sha=c_list_b[0].sha if c_list_b else "shaB",
-                        commit_message=c_list_b[0].message if c_list_b else "Edit file",
-                        author=c_list_b[0].author if c_list_b else "Dev B",
+                        commit_sha=_safe_sha(c_list_b, b_b),
+                        commit_message=_safe_msg(c_list_b, "Edit file"),
+                        author=_safe_author(c_list_b, b_b),
                         branch=b_b,
                         changed_files=direct_files,
-                        snippet_or_symbol=direct_files[0],
-                        observation="Concurrent edits in branch B."
+                        snippet_or_symbol=_safe_snippet(c_list_b, direct_files[0]),
+                        observation=f"Concurrent edits in {direct_files[0]} on {b_b}."
                     )
                 ],
                 problem_description=f"Both branches touch lines in {', '.join(direct_files[:2])}.",
@@ -622,22 +643,22 @@ def detect_collisions(
                 affected_components=["shared abstraction", "core utilities", "module index"],
                 evidence=[
                     EvidenceItem(
-                        commit_sha=c_list_a[0].sha if c_list_a else "shaA",
-                        commit_message=c_list_a[0].message if c_list_a else "Update core utility",
-                        author=c_list_a[0].author if c_list_a else "Dev A",
+                        commit_sha=_safe_sha(c_list_a, b_a),
+                        commit_message=_safe_msg(c_list_a, "Update core utility"),
+                        author=_safe_author(c_list_a, b_a),
                         branch=b_a,
                         changed_files=shared_modules,
-                        snippet_or_symbol=shared_modules[0],
-                        observation="Exports and shared abstractions modified in branch A."
+                        snippet_or_symbol=_safe_snippet(c_list_a, shared_modules[0]),
+                        observation=f"Exports and shared abstractions modified in {shared_modules[0]} on {b_a}."
                     ),
                     EvidenceItem(
-                        commit_sha=c_list_b[0].sha if c_list_b else "shaB",
-                        commit_message=c_list_b[0].message if c_list_b else "Refactor shared module",
-                        author=c_list_b[0].author if c_list_b else "Dev B",
+                        commit_sha=_safe_sha(c_list_b, b_b),
+                        commit_message=_safe_msg(c_list_b, "Refactor shared module"),
+                        author=_safe_author(c_list_b, b_b),
                         branch=b_b,
                         changed_files=shared_modules,
-                        snippet_or_symbol=shared_modules[0],
-                        observation="Concurrent modifications to shared interface in branch B."
+                        snippet_or_symbol=_safe_snippet(c_list_b, shared_modules[0]),
+                        observation=f"Concurrent modifications to shared interface in {shared_modules[0]} on {b_b}."
                     )
                 ],
                 problem_description=f"Both branches modify shared abstraction exports in {shared_modules[0]}.",
