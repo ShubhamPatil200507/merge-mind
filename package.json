@@ -4,8 +4,9 @@
   "private": true,
   "description": "MergeMind — AI GitHub Integration Advisor",
   "scripts": {
-    "build": "cd frontend && npm install && npm run build",
-    "dev:frontend": "cd frontend && npm run dev",
+    "build": "npm --prefix frontend install --include=dev && npm --prefix frontend run build",
+    "install": "npm --prefix frontend install --include=dev",
+    "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "cd backend && python -m uvicorn app.main:app --reload --port 8000"
   }
 }
