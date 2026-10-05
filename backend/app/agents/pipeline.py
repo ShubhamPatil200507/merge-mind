@@ -38,6 +38,7 @@ async def run_agentic_analysis(
     target_branch_b: Optional[str] = None,
     is_demo: bool = False,
     warning_message: Optional[str] = None,
+    rate_limited: bool = False,
     provider_override: Optional[str] = None,
     file_snapshots: Optional[Dict[str, str]] = None
 ) -> RepositoryAnalysis:
@@ -293,7 +294,7 @@ async def run_agentic_analysis(
         active_branch_b=target_branch_b or (branches[1] if len(branches) > 1 else None),
         analyzed_at=datetime.datetime.utcnow().isoformat() + "Z",
         is_demo=is_demo,
-        rate_limited=False,
+        rate_limited=rate_limited,
         warning_message=warning_message
     )
 

@@ -80,7 +80,8 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
               {[
                 { name: 'hyperlink-io/nexus-api (Demo)', val: 'hyperlink-io/nexus-api' },
                 { name: 'expressjs/express', val: 'expressjs/express' },
-                { name: 'facebook/react', val: 'facebook/react' }
+                { name: 'facebook/react', val: 'facebook/react' },
+                { name: 'ShubhamPatil200507/merge-mind', val: 'ShubhamPatil200507/merge-mind' }
               ].map((p) => (
                 <button
                   key={p.val}
@@ -105,22 +106,22 @@ export const ConnectModal: React.FC<ConnectModalProps> = ({
                 <Key className="w-3.5 h-3.5 text-[#6B6B70]" />
                 <span>GITHUB PERSONAL ACCESS TOKEN (OPTIONAL):</span>
               </label>
-              <span className="text-[10px] text-[#929298] font-mono">Bypasses 60 req/hr limit</span>
+              <span className="text-[10px] text-[#929298] font-mono">For private repos / 5,000 req/hr</span>
             </div>
             <input
               type="password"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
+              placeholder="ghp_xxxxxxxxxxxxxxxxxxxx (Optional for public repos)"
               className="w-full px-3 py-1.5 rounded-[6px] bg-[#F7F7F5] border border-[#E2E2DE] text-[#18181B] font-mono focus:outline-none focus:border-[#2563EB] focus:bg-white"
             />
           </div>
 
           {/* Note */}
           <div className="p-3 rounded-[6px] bg-[#F7F7F5] border border-[#E2E2DE] space-y-1 text-[#6B6B70] text-[11px]">
-            <div className="font-semibold text-[#18181B]">Rate limit policy</div>
+            <div className="font-semibold text-[#18181B]">Zero-token public repository support</div>
             <p>
-              GitHub limits unauthenticated calls to 60 requests/hr per IP. If you hit this limit on public repositories, provide a Personal Access Token or select the demo repository for instant exploration.
+              Public repositories are analyzed with automatic Git Smart Protocol fallback, bypassing GitHub's 60 req/hr anonymous REST limits. PAT is only required for private repositories.
             </p>
           </div>
 

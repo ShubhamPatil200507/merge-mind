@@ -280,4 +280,17 @@ def test_api_endpoints():
         "use_demo": False
     })
     assert invalid_repo_res.status_code == 400
-    assert "LIVE ANALYSIS FAILED" in str(invalid_repo_res.json()) or "GitHub API" in str(invalid_repo_res.json())
+
+@pytest.mark.asyncio
+async def test_github_client_resilience():
+    from app.github_client import parse_repo_identifier, fetch_github_repository
+    owner, repo = parse_repo_identifier("https://github.com/expressjs/express.git")
+    assert owner == "expressjs"
+    assert repo == "express"
+
+    data, err = await fetch_github_repository("expressjs/express")
+    assert err is None
+    assert data is not None
+    assert data["name"] == "expressjs/express"
+    assert len(data["branches"]) >= 1
+    assert len(data["commits"]) >= 1

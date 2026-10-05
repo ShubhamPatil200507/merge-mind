@@ -168,10 +168,12 @@ async def analyze_repository(req: AnalyzeRepoRequest):
         repo_name=repo_data["name"],
         branches=repo_data["branches"],
         commits=commits,
-        pull_requests=repo_data["pull_requests"],
+        pull_requests=repo_data.get("pull_requests", []),
         target_branch_a=req.branch_a,
         target_branch_b=req.branch_b,
         is_demo=False,
+        warning_message=repo_data.get("warning_message"),
+        rate_limited=repo_data.get("rate_limited", False),
         provider_override=RUNTIME_SETTINGS.get("provider")
     )
     
@@ -219,6 +221,8 @@ async def compare_branches(req: CompareBranchesRequest):
         target_branch_a=req.branch_a,
         target_branch_b=req.branch_b,
         is_demo=False,
+        warning_message=repo_meta.get("warning_message") if repo_meta else None,
+        rate_limited=repo_meta.get("rate_limited", False) if repo_meta else False,
         provider_override=RUNTIME_SETTINGS.get("provider")
     )
 

@@ -67,9 +67,9 @@ export function App() {
   const handleAnalyzeRepo = async (repoUrl: string, token?: string, useDemo: boolean = false) => {
     setIsLoading(true);
     setError(null);
-    setIsConnectModalOpen(false);
 
     if (useDemo || repoUrl === 'hyperlink-io/nexus-api') {
+      setIsConnectModalOpen(false);
       setAnalysis(fallbackDemoAnalysis);
       if (fallbackDemoAnalysis.detected_risks.length > 0) {
         setSelectedRiskId(fallbackDemoAnalysis.detected_risks[0].id);
@@ -100,14 +100,12 @@ export function App() {
       if (data.detected_risks.length > 0) {
         setSelectedRiskId(data.detected_risks[0].id);
       }
+      setIsConnectModalOpen(false);
       setActiveTab('overview');
     } catch (err: any) {
       const errorMsg = err.message || 'Error executing repository analysis.';
       setError(errorMsg);
-      setAnalysis(fallbackDemoAnalysis);
-      if (fallbackDemoAnalysis.detected_risks.length > 0) {
-        setSelectedRiskId(fallbackDemoAnalysis.detected_risks[0].id);
-      }
+      setIsConnectModalOpen(false);
     } finally {
       setIsLoading(false);
     }
@@ -216,13 +214,14 @@ export function App() {
           </div>
         )}
 
-        {/* Global Loading Spinner */}
-        {isLoading && !analysis && (
-          <div className="flex flex-col items-center justify-center py-24 space-y-2">
-            <div className="w-6 h-6 rounded-full border-2 border-[#D9D9D4] border-t-[#2563EB] animate-spin" />
-            <p className="text-xs font-mono text-[#6B6B70]">
-              Running integration analysis pipeline...
-            </p>
+        {/* Global Loading Banner / Spinner */}
+        {isLoading && (
+          <div className="mb-4 p-3.5 rounded-[6px] bg-[#EFF6FF] border border-[#BFDBFE] text-[#1E40AF] text-xs flex items-center justify-between font-mono animate-pulse">
+            <div className="flex items-center gap-2.5">
+              <div className="w-3.5 h-3.5 rounded-full border-2 border-[#BFDBFE] border-t-[#2563EB] animate-spin shrink-0" />
+              <span>Ingesting repository: Fetching commit graph, AST parsing, and running collision agents...</span>
+            </div>
+            <span className="text-[11px] text-[#2563EB] font-medium hidden sm:inline">Active Analysis</span>
           </div>
         )}
 
