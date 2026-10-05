@@ -19,8 +19,8 @@ import { API_BASE } from './config';
 import { fallbackDemoAnalysis } from './demoData';
 
 export function App() {
-  const [analysis, setAnalysis] = useState<RepositoryAnalysis | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [analysis, setAnalysis] = useState<RepositoryAnalysis | null>(fallbackDemoAnalysis);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [isWarningDismissed, setIsWarningDismissed] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('overview');
@@ -91,19 +91,10 @@ export function App() {
     } catch (err: any) {
       const errorMsg = err.message || 'Error executing repository analysis.';
       setError(errorMsg);
-      // If we don't already have an analysis loaded, automatically load the demo repo in background
       if (!analysis) {
-        try {
-          const demoRes = await fetch(`${API_BASE}/api/demo`);
-          if (demoRes.ok) {
-            const demoData: RepositoryAnalysis = await demoRes.json();
-            setAnalysis(demoData);
-            if (demoData.detected_risks.length > 0) {
-              setSelectedRiskId(demoData.detected_risks[0].id);
-            }
-          }
-        } catch {
-          // Keep error displayed
+        setAnalysis(fallbackDemoAnalysis);
+        if (fallbackDemoAnalysis.detected_risks.length > 0) {
+          setSelectedRiskId(fallbackDemoAnalysis.detected_risks[0].id);
         }
       }
     } finally {
