@@ -16,6 +16,7 @@ import { ConnectModal } from './components/ConnectModal';
 import { RepositoryAnalysis, ReviewStatus, IntegrationRisk } from './types';
 import { RefreshCw, AlertCircle, AlertTriangle } from 'lucide-react';
 import { API_BASE } from './config';
+import { fallbackDemoAnalysis } from './demoData';
 
 export function App() {
   const [analysis, setAnalysis] = useState<RepositoryAnalysis | null>(null);
@@ -49,7 +50,12 @@ export function App() {
         setSelectedRiskId(data.detected_risks[0].id);
       }
     } catch (err: any) {
-      setError(err.message || 'Could not connect to MergeMind backend.');
+      // Instantly fall back to offline client demo dataset so app NEVER stays blank
+      console.warn('Backend demo fetch failed, using built-in demo dataset:', err);
+      setAnalysis(fallbackDemoAnalysis);
+      if (fallbackDemoAnalysis.detected_risks.length > 0) {
+        setSelectedRiskId(fallbackDemoAnalysis.detected_risks[0].id);
+      }
     } finally {
       setIsLoading(false);
     }
