@@ -2,15 +2,11 @@ import React, { useState } from 'react';
 import { 
   GitPullRequest, 
   GitBranch, 
-  ShieldAlert, 
   CheckCircle2, 
-  FileCode, 
   ArrowRight, 
-  Terminal, 
-  AlertTriangle,
   GitCommit
 } from 'lucide-react';
-import { RepositoryAnalysis, PullRequest, IntegrationRisk } from '../types';
+import { RepositoryAnalysis } from '../types';
 
 interface PullRequestAnalysisTabProps {
   analysis: RepositoryAnalysis;
@@ -28,7 +24,7 @@ export const PullRequestAnalysisTab: React.FC<PullRequestAnalysisTabProps> = ({
 
   if (prs.length === 0) {
     return (
-      <div className="p-8 rounded-lg bg-[#161b22] border border-[#30363d] text-center text-xs font-mono text-gray-500">
+      <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-8 text-center text-xs font-mono text-[#6B6B70]">
         No active pull requests identified in repository.
       </div>
     );
@@ -36,204 +32,154 @@ export const PullRequestAnalysisTab: React.FC<PullRequestAnalysisTabProps> = ({
 
   const selectedPr = prs.find((p) => p.number === selectedPrId) || prs[0];
 
-  // Find risks related to this PR's source branch
+  // Find risks related to this PR
   const relatedRisks = analysis.detected_risks.filter((r) =>
     r.branches.includes(selectedPr.source_branch) ||
     r.branches.includes(selectedPr.target_branch)
   );
 
-  // Commits belonging to this PR branch
-  const prCommits = analysis.commits.filter((c) =>
-    c.branch === selectedPr.source_branch || c.pr_number === selectedPr.number
-  );
+  const getSeverityBadge = (level: string) => {
+    switch (level) {
+      case 'CRITICAL':
+        return 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]';
+      case 'HIGH':
+        return 'bg-[#FFF7ED] border-[#FFEDD5] text-[#9A3412]';
+      case 'MEDIUM':
+        return 'bg-[#FEFCE8] border-[#FEF08A] text-[#854D0E]';
+      default:
+        return 'bg-[#F0FDF4] border-[#DCFCE7] text-[#166534]';
+    }
+  };
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="p-4 rounded-lg bg-[#161b22] border border-[#30363d] flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+      {/* Header Context */}
+      <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
         <div>
-          <div className="font-mono font-semibold text-white flex items-center gap-2">
-            <GitPullRequest className="w-4 h-4 text-emerald-400" />
-            <span>PULL REQUEST SEMANTIC COMPATIBILITY MATRIX</span>
-          </div>
-          <div className="text-gray-400 text-xs">
-            Assesses whether concurrent pull requests can merge into the target branch without behavioral conflict.
-          </div>
+          <h1 className="text-base font-semibold text-[#18181B] tracking-tight">
+            Pull Request Semantic Compatibility Matrix
+          </h1>
+          <p className="text-xs text-[#6B6B70] mt-0.5">
+            Evaluates whether parallel pull requests can merge into <code className="font-mono">{selectedPr.target_branch}</code> without breaking API contracts or middleware execution order.
+          </p>
         </div>
-        <div className="font-mono text-gray-400 text-[11px] px-2.5 py-1 rounded bg-[#0d1117] border border-[#30363d]">
-          {prs.length} Open Pull Requests Monitored
+        <div className="font-mono text-xs text-[#6B6B70]">
+          {prs.length} pull requests tracked
         </div>
       </div>
 
-      {/* PR Selector Ribbon */}
-      <div className="p-2 rounded-lg bg-[#161b22] border border-[#30363d] flex items-center gap-2 overflow-x-auto text-xs font-mono">
-        <span className="text-gray-500 text-[11px] px-2">SELECT PR:</span>
-        {prs.map((pr) => {
-          const isSelected = selectedPr.number === pr.number;
-          return (
-            <button
-              key={pr.number}
-              onClick={() => setSelectedPrId(pr.number)}
-              className={`px-3 py-1.5 rounded transition-colors flex items-center gap-2 ${
-                isSelected
-                  ? 'bg-[#21262d] text-white border border-blue-500 font-semibold'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              <span className="text-emerald-400">#{pr.number}</span>
-              <span className="max-w-[200px] truncate">{pr.title}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
-        {/* Left 2 Cols: PR Overview & Semantic Risk Analysis */}
-        <div className="lg:col-span-2 space-y-4">
-          
-          <div className="p-5 rounded-lg bg-[#161b22] border border-[#30363d] space-y-4 text-xs">
-            <div className="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-[#30363d]">
-              <div>
-                <div className="flex items-center gap-2 font-mono text-[11px] mb-1">
-                  <span className="text-emerald-400 font-bold">PR #{selectedPr.number}</span>
-                  <span className="text-gray-500">|</span>
-                  <span className="text-gray-300">{selectedPr.author_name || selectedPr.author}</span>
-                  <span className="text-gray-500">|</span>
-                  <span className="px-1.5 py-0.2 rounded bg-[#0d1117] text-gray-400 border border-[#30363d]">
-                    {selectedPr.status.toUpperCase()}
-                  </span>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        {/* Left Column: PR List */}
+        <div className="lg:col-span-4 bg-white border border-[#E2E2DE] rounded-[8px] overflow-hidden">
+          <div className="px-3.5 py-2.5 border-b border-[#E2E2DE] bg-[#FAFAFA] font-mono text-xs font-semibold text-[#18181B]">
+            PULL REQUESTS
+          </div>
+          <div className="divide-y divide-[#E2E2DE]">
+            {prs.map((p) => {
+              const isSelected = p.number === selectedPr.number;
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => setSelectedPrId(p.number)}
+                  className={`p-3.5 cursor-pointer text-xs transition-colors ${
+                    isSelected ? 'bg-[#F1F1EF] border-l-2 border-[#2563EB]' : 'hover:bg-[#F8F8F6]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono font-medium text-[#2563EB]">#{p.number}</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-[4px] bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]">
+                      {p.status}
+                    </span>
+                  </div>
+                  <div className="font-medium text-[#18181B] mt-1 line-clamp-1">
+                    {p.title}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1.5 font-mono text-[11px] text-[#6B6B70]">
+                    <span>{p.source_branch}</span>
+                    <span>→</span>
+                    <span>{p.target_branch}</span>
+                  </div>
                 </div>
-                <h3 className="text-base font-semibold text-white">
-                  {selectedPr.title}
-                </h3>
-              </div>
+              );
+            })}
+          </div>
+        </div>
 
-              <div className="font-mono text-[11px] bg-[#0d1117] px-3 py-1.5 rounded border border-[#30363d] text-gray-300">
-                <code>{selectedPr.source_branch}</code> → <code>{selectedPr.target_branch}</code>
-              </div>
+        {/* Right Column: Selected PR Evaluation */}
+        <div className="lg:col-span-8 bg-white border border-[#E2E2DE] rounded-[8px] p-5 space-y-5">
+          {/* PR Details */}
+          <div className="border-b border-[#E2E2DE] pb-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs text-[#2563EB] font-semibold">PR #{selectedPr.number}</span>
+              <span className="text-xs font-mono text-[#6B6B70]">Author: {selectedPr.author_name || selectedPr.author}</span>
             </div>
-
-            <p className="text-gray-300 text-xs leading-relaxed font-sans">
+            <h2 className="text-base font-semibold text-[#18181B]">
+              {selectedPr.title}
+            </h2>
+            <p className="text-xs text-[#6B6B70] leading-relaxed">
               {selectedPr.description}
             </p>
+            <div className="flex items-center gap-4 text-xs font-mono text-[#6B6B70] pt-1">
+              <span>Branch: <strong className="text-[#18181B]">{selectedPr.source_branch}</strong></span>
+              <span>Diff: <span className="text-[#16803C]">+{selectedPr.additions}</span> <span className="text-[#DC2626]">-{selectedPr.deletions}</span></span>
+              <span>Files: {selectedPr.changed_files_count}</span>
+            </div>
+          </div>
 
-            {/* Cross-PR Semantic Interactions */}
-            <div className="space-y-2 pt-2">
-              <div className="font-mono text-gray-400 text-xs font-semibold uppercase flex items-center justify-between">
-                <span>CONCURRENT INTEGRATION RISKS FOR PR #{selectedPr.number} ({relatedRisks.length})</span>
+          {/* Related Risks Table */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="font-mono font-semibold uppercase text-xs text-[#18181B]">
+                Cross-Branch Risks Identified with this PR ({relatedRisks.length})
+              </h3>
+            </div>
+
+            {relatedRisks.length === 0 ? (
+              <div className="p-4 rounded-[6px] bg-[#F0FDF4] border border-[#DCFCE7] text-xs text-[#166534] font-mono">
+                ✓ No cross-branch collisions detected for this pull request.
               </div>
-
-              {relatedRisks.length > 0 ? (
-                <div className="space-y-2.5">
-                  {relatedRisks.map((risk) => {
-                    const otherBranch = risk.branches.find((b) => b !== selectedPr.source_branch) || risk.branches[1];
-                    const otherPr = prs.find((p) => p.source_branch === otherBranch);
-
-                    return (
-                      <div
-                        key={risk.id}
-                        className="p-4 rounded bg-[#0d1117] border border-[#30363d] space-y-2.5"
-                      >
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-red-950/80 text-red-300 border border-red-800">
-                              {risk.risk_level}
-                            </span>
-                            <span className="font-mono text-xs text-gray-300">
-                              Collides with {otherPr ? `PR #${otherPr.number} (${otherPr.title})` : `branch ${otherBranch}`}
-                            </span>
-                          </div>
-
-                          <span className="font-mono text-[11px] text-gray-400">
-                            Confidence: {Math.round(risk.confidence * 100)}%
+            ) : (
+              <div className="border border-[#E2E2DE] rounded-[6px] overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-[#F1F1EF] border-b border-[#E2E2DE] font-mono text-[11px] text-[#6B6B70]">
+                    <tr>
+                      <th className="py-2 px-3 font-medium">Severity</th>
+                      <th className="py-2 px-3 font-medium">Type</th>
+                      <th className="py-2 px-3 font-medium">Collision Summary</th>
+                      <th className="py-2 px-3 font-medium text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E2E2DE]">
+                    {relatedRisks.map((r) => (
+                      <tr key={r.id} className="hover:bg-[#F8F8F6]">
+                        <td className="py-2.5 px-3 whitespace-nowrap">
+                          <span className={`inline-flex px-1.5 py-0.2 rounded-[4px] border text-[10px] font-mono font-semibold ${getSeverityBadge(r.risk_level)}`}>
+                            {r.risk_level}
                           </span>
-                        </div>
-
-                        <h4 className="text-xs font-semibold text-white">
-                          {risk.title}
-                        </h4>
-
-                        <p className="text-xs text-gray-400 leading-relaxed font-sans">
-                          {risk.summary}
-                        </p>
-
-                        <div className="p-2.5 rounded bg-[#161b22] border border-[#30363d] text-[11px] font-mono text-gray-400 flex flex-wrap items-center justify-between gap-2">
-                          <div>
-                            Target Files: <span className="text-blue-300">{risk.affected_files.join(', ')}</span>
-                          </div>
-
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-[11px] text-[#6B6B70] whitespace-nowrap">
+                          {r.collision_type}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <div className="font-medium text-[#18181B]">{r.title}</div>
+                          <div className="text-[11px] text-[#6B6B70] line-clamp-1">{r.summary}</div>
+                        </td>
+                        <td className="py-2.5 px-3 text-right whitespace-nowrap">
                           <button
-                            onClick={() => onOpenResolution(risk.id)}
-                            className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-semibold"
+                            onClick={() => onSelectRisk(r.id)}
+                            className="text-[#2563EB] hover:underline font-mono text-xs"
                           >
-                            <span>Inspect Resolution Plan</span>
-                            <ArrowRight className="w-3 h-3" />
+                            Inspect →
                           </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="p-4 rounded bg-[#0d1117] border border-[#30363d] text-center text-gray-500 font-mono text-xs">
-                  No cross-PR behavioral risks detected for this pull request.
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right 1 Col: PR Commits & Test Recommendations */}
-        <div className="space-y-4">
-          {/* Commits */}
-          <div className="p-4 rounded-lg bg-[#161b22] border border-[#30363d] space-y-3 text-xs font-mono">
-            <div className="border-b border-[#30363d] pb-2 font-semibold text-white flex items-center justify-between">
-              <span>COMMITS IN THIS PR ({prCommits.length})</span>
-              <span className="text-gray-500 text-[10px]">Source: {selectedPr.source_branch}</span>
-            </div>
-
-            <div className="space-y-1.5 max-h-56 overflow-y-auto">
-              {prCommits.map((c) => (
-                <div key={c.sha} className="p-2 rounded bg-[#0d1117] space-y-1">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-blue-400 font-bold">{c.sha}</span>
-                    <span className="text-gray-500 text-[10px]">{c.author}</span>
-                  </div>
-                  <div className="text-gray-300 text-xs font-sans truncate">
-                    "{c.message}"
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Recommended Tests for PR */}
-          <div className="p-4 rounded-lg bg-[#161b22] border border-[#30363d] space-y-2.5 text-xs font-mono">
-            <div className="border-b border-[#30363d] pb-2 font-semibold text-white flex items-center gap-2">
-              <Terminal className="w-3.5 h-3.5 text-blue-400" />
-              <span>TEST VERIFICATION BEFORE MERGE</span>
-            </div>
-
-            <div className="space-y-1.5 text-[11px]">
-              {relatedRisks[0]?.test_recommendation ? (
-                <>
-                  <div className="text-gray-400">Tooling: {relatedRisks[0].test_recommendation.tooling_detected}</div>
-                  <div className="space-y-1 pt-1">
-                    {relatedRisks[0].test_recommendation.test_commands?.map((cmd) => (
-                      <div key={cmd} className="p-1.5 rounded bg-[#0d1117] border border-[#30363d] text-emerald-400">
-                        $ {cmd}
-                      </div>
+                        </td>
+                      </tr>
                     ))}
-                  </div>
-                </>
-              ) : (
-                <div className="text-gray-500 italic">Run repository standard CI suite.</div>
-              )}
-            </div>
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
-
       </div>
     </div>
   );

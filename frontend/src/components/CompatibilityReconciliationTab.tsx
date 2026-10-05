@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
 import { 
-  FileCode, 
   Copy, 
   Check, 
   Download, 
-  ArrowRight, 
-  GitBranch, 
-  Terminal, 
-  CheckCircle2, 
-  ShieldCheck,
+  Terminal,
   Code2
 } from 'lucide-react';
 import { CompatibilityPatch, RepositoryAnalysis } from '../types';
@@ -22,13 +17,13 @@ export const CompatibilityReconciliationTab: React.FC<CompatibilityReconciliatio
 }) => {
   const patches = analysis.compatibility_patches || [];
   const [selectedPatchIndex, setSelectedPatchIndex] = useState<number>(0);
-  const [viewMode, setViewMode] = useState<'reconciled' | 'patch' | 'instructions'>('reconciled');
+  const [viewMode, setViewMode] = useState<'diff' | 'reconciled'>('diff');
   const [copied, setCopied] = useState<boolean>(false);
-  const [copiedCli, setCopiedCli] = useState<boolean>(false);
+  const [copiedCmd, setCopiedCmd] = useState<boolean>(false);
 
   if (patches.length === 0) {
     return (
-      <div className="p-8 rounded-lg bg-[#161b22] border border-[#30363d] text-center text-xs font-mono text-gray-500">
+      <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-8 text-center text-xs font-mono text-[#6B6B70]">
         No active compatibility reconciliation patches required.
       </div>
     );
@@ -42,10 +37,10 @@ export const CompatibilityReconciliationTab: React.FC<CompatibilityReconciliatio
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleCopyCli = (filename: string) => {
+  const handleCopyCmd = (filename: string) => {
     navigator.clipboard.writeText(`git apply ${filename.replace('/', '_')}.patch`);
-    setCopiedCli(true);
-    setTimeout(() => setCopiedCli(false), 2000);
+    setCopiedCmd(true);
+    setTimeout(() => setCopiedCmd(false), 2000);
   };
 
   const handleDownloadPatch = (p: CompatibilityPatch) => {
@@ -60,205 +55,125 @@ export const CompatibilityReconciliationTab: React.FC<CompatibilityReconciliatio
 
   return (
     <div className="space-y-4">
-      {/* Intro Header */}
-      <div className="p-4 rounded-lg bg-[#161b22] border border-[#30363d] flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
-        <div className="space-y-1">
-          <div className="font-mono font-semibold text-white flex items-center gap-2">
-            <Code2 className="w-4 h-4 text-blue-400" />
-            <span>CODE RECONCILIATION & COMPATIBILITY ENGINE</span>
-          </div>
-          <p className="text-gray-400 text-xs">
-            Generated code modifications to harmonize diverging repositories and parallel branches into mutually compatible states without breaking either developer's requirements.
+      {/* Header Context */}
+      <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+        <div>
+          <h1 className="text-base font-semibold text-[#18181B] tracking-tight">
+            Compatibility Reconciliation Patches
+          </h1>
+          <p className="text-xs text-[#6B6B70] mt-0.5">
+            Proposed source modifications formatted as standard unified diffs (<code className="font-mono">git apply</code> compatible) to make divergent branches mutually compatible.
           </p>
         </div>
-        <div className="font-mono text-gray-400 text-[11px] px-2.5 py-1 rounded bg-[#0d1117] border border-[#30363d] shrink-0">
-          {patches.length} Reconciliation Patches Available
+        <div className="font-mono text-xs text-[#6B6B70]">
+          {patches.length} patches available
         </div>
       </div>
 
-      {/* Patch Selector Tabs */}
-      <div className="p-2 rounded-lg bg-[#161b22] border border-[#30363d] flex items-center gap-2 overflow-x-auto text-xs font-mono">
-        <span className="text-gray-500 text-[11px] px-2">TARGET FILE:</span>
-        {patches.map((p, idx) => {
-          const isSelected = selectedPatchIndex === idx;
-          return (
-            <button
-              key={p.id}
-              onClick={() => setSelectedPatchIndex(idx)}
-              className={`px-3 py-1.5 rounded transition-colors flex items-center gap-2 ${
-                isSelected
-                  ? 'bg-[#21262d] text-white border border-blue-500 font-semibold'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              <FileCode className="w-3.5 h-3.5 text-gray-400" />
-              <span>{p.file_path}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
-        {/* Left 2 Cols: Proposed Code & Diffs */}
-        <div className="lg:col-span-2 space-y-3">
-          
-          <div className="rounded-lg bg-[#161b22] border border-[#30363d] overflow-hidden">
-            {/* Strategy header */}
-            <div className="p-4 border-b border-[#30363d] space-y-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-xs font-mono text-blue-400 font-semibold uppercase">
-                  COMPATIBILITY STRATEGY:
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        {/* Left Column: Patch List */}
+        <div className="lg:col-span-4 bg-white border border-[#E2E2DE] rounded-[8px] overflow-hidden">
+          <div className="px-3.5 py-2.5 border-b border-[#E2E2DE] bg-[#FAFAFA] font-mono text-xs font-semibold text-[#18181B]">
+            PATCH INDEX
+          </div>
+          <div className="divide-y divide-[#E2E2DE]">
+            {patches.map((p, idx) => {
+              const isSelected = idx === selectedPatchIndex;
+              return (
+                <div
+                  key={p.id || idx}
+                  onClick={() => setSelectedPatchIndex(idx)}
+                  className={`p-3 cursor-pointer text-xs transition-colors ${
+                    isSelected ? 'bg-[#F1F1EF] border-l-2 border-[#2563EB]' : 'hover:bg-[#F8F8F6]'
+                  }`}
+                >
+                  <div className="font-mono font-medium text-[#18181B] truncate">
+                    {p.file_path}
+                  </div>
+                  <div className="text-[11px] text-[#6B6B70] mt-1 line-clamp-2">
+                    {p.strategy_name || p.compatibility_strategy}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2 font-mono text-[10px] text-[#929298]">
+                    <span>Unified Diff</span>
+                    <span>•</span>
+                    <span>Validated</span>
+                  </div>
                 </div>
-                <div className="text-[11px] font-mono text-gray-400">
-                  <span>{patch.target_branch}</span>
-                  <span className="mx-1 text-gray-600">↔</span>
-                  <span>{patch.source_branch}</span>
-                </div>
-              </div>
+              );
+            })}
+          </div>
+        </div>
 
-              <h3 className="text-sm font-semibold text-white">
-                {patch.compatibility_strategy}
-              </h3>
-
-              <p className="text-xs text-gray-300 leading-relaxed font-sans">
-                {patch.summary_of_changes}
-              </p>
+        {/* Right Column: Code & Diff Viewer */}
+        <div className="lg:col-span-8 bg-white border border-[#E2E2DE] rounded-[8px] overflow-hidden">
+          {/* Patch Control Bar */}
+          <div className="px-4 py-3 border-b border-[#E2E2DE] bg-[#FAFAFA] flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="font-mono font-semibold text-[#18181B]">{patch.file_path}</span>
+              <span className="font-mono text-[11px] text-[#6B6B70]">({patch.strategy_name || 'Patch'})</span>
             </div>
 
-            {/* View Mode Switcher & Export */}
-            <div className="px-4 py-2 bg-[#0d1117] border-b border-[#30363d] flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
-              <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-[4px] border border-[#D9D9D4] overflow-hidden font-mono text-[11px]">
+                <button
+                  onClick={() => setViewMode('diff')}
+                  className={`px-2.5 py-1 ${viewMode === 'diff' ? 'bg-[#18181B] text-white font-medium' : 'bg-white text-[#6B6B70] hover:bg-[#F1F1EF]'}`}
+                >
+                  Unified Diff
+                </button>
                 <button
                   onClick={() => setViewMode('reconciled')}
-                  className={`px-2.5 py-1 rounded transition-colors ${
-                    viewMode === 'reconciled'
-                      ? 'bg-[#21262d] text-white font-semibold'
-                      : 'text-gray-400 hover:text-gray-200'
-                  }`}
+                  className={`px-2.5 py-1 ${viewMode === 'reconciled' ? 'bg-[#18181B] text-white font-medium' : 'bg-white text-[#6B6B70] hover:bg-[#F1F1EF]'}`}
                 >
-                  Proposed Compatible Code
-                </button>
-                <button
-                  onClick={() => setViewMode('patch')}
-                  className={`px-2.5 py-1 rounded transition-colors ${
-                    viewMode === 'patch'
-                      ? 'bg-[#21262d] text-white font-semibold'
-                      : 'text-gray-400 hover:text-gray-200'
-                  }`}
-                >
-                  Unified Diff (.patch)
-                </button>
-                <button
-                  onClick={() => setViewMode('instructions')}
-                  className={`px-2.5 py-1 rounded transition-colors ${
-                    viewMode === 'instructions'
-                      ? 'bg-[#21262d] text-white font-semibold'
-                      : 'text-gray-400 hover:text-gray-200'
-                  }`}
-                >
-                  Apply Steps
+                  Reconciled File
                 </button>
               </div>
 
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleCopyCode(viewMode === 'patch' ? patch.unified_diff : patch.reconciled_code)}
-                  className="px-2 py-0.5 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-300 hover:text-white transition-colors flex items-center gap-1 text-[11px]"
-                >
-                  {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                  {copied ? 'Copied' : 'Copy'}
-                </button>
-                <button
-                  onClick={() => handleDownloadPatch(patch)}
-                  className="px-2 py-0.5 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-300 hover:text-white transition-colors flex items-center gap-1 text-[11px]"
-                >
-                  <Download className="w-3 h-3" />
-                  Save .patch
-                </button>
-              </div>
-            </div>
-
-            {/* Content view */}
-            <div className="p-4">
-              {viewMode === 'reconciled' && (
-                <div className="space-y-2">
-                  <div className="text-[10px] font-mono text-gray-500 uppercase">
-                    PROPOSED COMPATIBLE IMPLEMENTATION ({patch.file_path}):
-                  </div>
-                  <pre className="p-3.5 rounded bg-[#0d1117] border border-[#30363d] font-mono text-xs text-gray-200 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-[460px]">
-                    {patch.reconciled_code}
-                  </pre>
-                </div>
-              )}
-
-              {viewMode === 'patch' && (
-                <div className="space-y-2">
-                  <div className="text-[10px] font-mono text-gray-500 uppercase">
-                    UNIFIED DIFF PATCH (GIT APPLY READY):
-                  </div>
-                  <pre className="p-3.5 rounded bg-[#0d1117] border border-[#30363d] font-mono text-xs text-emerald-400 overflow-x-auto whitespace-pre-wrap leading-relaxed max-h-[460px]">
-                    {patch.unified_diff}
-                  </pre>
-                </div>
-              )}
-
-              {viewMode === 'instructions' && (
-                <div className="space-y-3 font-sans text-xs">
-                  <div className="font-mono text-gray-400 font-semibold uppercase text-[11px]">
-                    MANUAL INTEGRATION INSTRUCTIONS:
-                  </div>
-                  <ol className="space-y-2 text-gray-300 list-decimal list-inside leading-relaxed">
-                    {(patch.instructions || []).map((inst: string, idx: number) => (
-                      <li key={idx} className="p-2 rounded bg-[#0d1117] border border-[#30363d]">
-                        {inst}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Right 1 Col: CLI Application Guide */}
-        <div className="space-y-4">
-          <div className="p-4 rounded-lg bg-[#161b22] border border-[#30363d] space-y-3 text-xs">
-            <div className="border-b border-[#30363d] pb-2 font-mono">
-              <div className="font-semibold text-white">APPLY VIA GIT CLI</div>
-              <div className="text-gray-400 text-[11px]">Direct developer application</div>
-            </div>
-
-            <p className="text-gray-400 font-sans text-xs leading-relaxed">
-              You can apply this reconciled compatibility patch directly to your working tree using git:
-            </p>
-
-            <div className="p-2.5 rounded bg-[#0d1117] border border-[#30363d] font-mono text-[11px] text-emerald-400 flex items-center justify-between gap-2">
-              <span className="truncate">$ git apply {patch.file_path.replace('/', '_')}.patch</span>
               <button
-                onClick={() => handleCopyCli(patch.file_path)}
-                className="px-1.5 py-0.5 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-300 shrink-0"
+                onClick={() => handleCopyCode(viewMode === 'diff' ? patch.unified_diff : patch.reconciled_code)}
+                className="px-2.5 py-1 rounded-[4px] bg-white border border-[#D9D9D4] text-[#27272A] hover:bg-[#F1F1EF] transition-colors flex items-center gap-1 font-mono text-[11px]"
               >
-                {copiedCli ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                {copied ? <Check className="w-3.5 h-3.5 text-[#16803C]" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copied ? 'Copied' : 'Copy'}</span>
+              </button>
+
+              <button
+                onClick={() => handleDownloadPatch(patch)}
+                className="px-2.5 py-1 rounded-[4px] bg-white border border-[#D9D9D4] text-[#27272A] hover:bg-[#F1F1EF] transition-colors flex items-center gap-1 font-mono text-[11px]"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download .patch</span>
               </button>
             </div>
+          </div>
 
-            <div className="space-y-1.5 pt-1 text-[11px] font-mono text-gray-400">
-              <div className="text-gray-300 font-bold">Verification Steps:</div>
-              <div className="p-2 rounded bg-[#0d1117] border border-[#30363d] space-y-1 text-gray-400">
-                <div>1. <code>git checkout {patch.target_branch}</code></div>
-                <div>2. <code>git apply {patch.file_path.replace('/', '_')}.patch</code></div>
-                <div>3. <code>git diff {patch.file_path}</code></div>
-                <div>4. Run recommended test suites</div>
-              </div>
-            </div>
+          {/* Strategy Rationale */}
+          <div className="p-3.5 bg-[#F7F7F5] border-b border-[#E2E2DE] text-xs text-[#18181B] leading-relaxed">
+            <strong className="font-mono text-[#6B6B70] text-[11px] uppercase mr-2">Rationale:</strong>
+            {patch.summary || patch.summary_of_changes || patch.why_this_resolves}
+          </div>
 
-            <div className="p-2 rounded bg-[#0d1117] border border-[#30363d] text-[10px] text-gray-500 font-mono">
-              Human review rule: Verify logic before commit. No automated code push performed.
+          {/* Code Body */}
+          <div className="bg-[#18181B] text-[#E2E2DE] font-mono text-xs p-4 overflow-x-auto max-h-[500px]">
+            <pre><code>{viewMode === 'diff' ? patch.unified_diff : patch.reconciled_code}</code></pre>
+          </div>
+
+          {/* Terminal Apply Helper */}
+          <div className="p-3 bg-[#FAFAFA] border-t border-[#E2E2DE] flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
+            <div className="flex items-center gap-2 text-[#6B6B70]">
+              <span>Apply via CLI:</span>
+              <code className="bg-[#F1F1EF] px-2 py-0.5 rounded text-[#18181B] border border-[#E2E2DE]">
+                git apply {patch.file_path.replace('/', '_')}.patch
+              </code>
             </div>
+            <button
+              onClick={() => handleCopyCmd(patch.file_path)}
+              className="text-[#2563EB] hover:underline"
+            >
+              {copiedCmd ? 'Command copied!' : 'Copy command'}
+            </button>
           </div>
         </div>
-
       </div>
     </div>
   );

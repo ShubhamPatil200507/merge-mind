@@ -14,7 +14,7 @@ import { SettingsTab } from './components/SettingsTab';
 import { RiskDetailModal } from './components/RiskDetailModal';
 import { ConnectModal } from './components/ConnectModal';
 import { RepositoryAnalysis, ReviewStatus, IntegrationRisk } from './types';
-import { RefreshCw, AlertCircle, AlertTriangle } from 'lucide-react';
+import { AlertCircle, AlertTriangle } from 'lucide-react';
 import { API_BASE } from './config';
 import { fallbackDemoAnalysis } from './demoData';
 
@@ -37,7 +37,6 @@ export function App() {
   const loadDemoRepository = async (branchA?: string, branchB?: string) => {
     setIsLoading(true);
     setError(null);
-    // Immediately display local demo data so the user never gets an empty page or stuck error
     if (!analysis) {
       setAnalysis(fallbackDemoAnalysis);
       if (fallbackDemoAnalysis.detected_risks.length > 0) {
@@ -59,7 +58,6 @@ export function App() {
         }
       }
     } catch (err: any) {
-      // Backend fetch failed - fallbackDemoAnalysis is already rendered
       console.warn('Backend demo fetch failed, using built-in demo dataset:', err);
     } finally {
       setIsLoading(false);
@@ -106,7 +104,6 @@ export function App() {
     } catch (err: any) {
       const errorMsg = err.message || 'Error executing repository analysis.';
       setError(errorMsg);
-      // Auto-populate with demo analysis so the user has the full UI active
       setAnalysis(fallbackDemoAnalysis);
       if (fallbackDemoAnalysis.detected_risks.length > 0) {
         setSelectedRiskId(fallbackDemoAnalysis.detected_risks[0].id);
@@ -128,7 +125,6 @@ export function App() {
         })
       });
 
-      // Update local state
       if (analysis) {
         setAnalysis({
           ...analysis,
@@ -157,7 +153,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d1117] text-[#c9d1d9] flex flex-col font-sans selection:bg-blue-900 selection:text-white">
+    <div className="min-h-screen bg-[#F7F7F5] text-[#18181B] flex flex-col font-sans selection:bg-[#BFDBFE] selection:text-[#18181B]">
       {/* Navigation Header */}
       <Navbar
         analysis={analysis}
@@ -171,14 +167,13 @@ export function App() {
       {/* Main Content Area */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-5 flex-1">
         {/* Error notification banner if any */}
-        {/* Error notification banner if any */}
         {error && (
-          <div className="mb-4 p-4 rounded-lg bg-red-950/80 border border-red-700 text-red-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono shadow-lg">
+          <div className="mb-4 p-3.5 rounded-[6px] bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
             <div className="flex items-start gap-2.5">
-              <AlertCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <AlertCircle className="w-4 h-4 text-[#DC2626] shrink-0 mt-0.5" />
               <div>
-                <div className="font-bold text-red-300 text-sm">LIVE REPOSITORY ANALYSIS FAILED</div>
-                <div className="mt-1 text-gray-300 font-sans leading-relaxed">{error}</div>
+                <div className="font-semibold text-[#991B1B]">REPOSITORY ANALYSIS NOTICE</div>
+                <div className="mt-0.5 text-[#7F1D1D] font-sans leading-relaxed">{error}</div>
               </div>
             </div>
             <button
@@ -187,7 +182,7 @@ export function App() {
                 loadDemoRepository();
                 setActiveTab('overview');
               }}
-              className="px-3.5 py-1.5 rounded bg-red-800 hover:bg-red-700 text-white font-medium text-xs transition-colors shrink-0 self-start sm:self-auto border border-red-600 cursor-pointer"
+              className="px-3 py-1 rounded-[4px] bg-white hover:bg-[#FEE2E2] text-[#991B1B] font-medium text-xs border border-[#FECACA] cursor-pointer shrink-0"
             >
               Switch to Demo Mode
             </button>
@@ -196,24 +191,24 @@ export function App() {
 
         {/* GitHub API warning/fallback banner */}
         {analysis?.warning_message && !isWarningDismissed && (
-          <div className="mb-4 p-3.5 rounded-lg bg-amber-950/60 border border-amber-800/80 text-amber-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
+          <div className="mb-4 p-3 rounded-[6px] bg-[#FEFCE8] border border-[#FEF08A] text-[#854D0E] text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono">
             <div className="flex items-start sm:items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5 sm:mt-0" />
+              <AlertTriangle className="w-4 h-4 text-[#CA8A04] shrink-0 mt-0.5 sm:mt-0" />
               <div className="space-y-0.5">
-                <div className="font-bold text-amber-300">GitHub API Notice</div>
-                <div className="text-[11px] text-amber-200/90 font-sans">{analysis.warning_message}</div>
+                <div className="font-semibold text-[#854D0E]">GitHub API Notice</div>
+                <div className="text-[11px] text-[#A16207] font-sans">{analysis.warning_message}</div>
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
               <button
                 onClick={() => setIsConnectModalOpen(true)}
-                className="px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-200 font-medium text-xs border border-[#30363d] transition-colors"
+                className="px-2.5 py-1 rounded-[4px] bg-white hover:bg-[#FEF9C3] text-[#854D0E] font-medium text-xs border border-[#FEF08A] transition-colors"
               >
                 Enter PAT Token
               </button>
               <button
                 onClick={() => setIsWarningDismissed(true)}
-                className="px-2 py-1 rounded bg-amber-900/40 hover:bg-amber-900/60 text-amber-300 text-xs transition-colors"
+                className="px-2 py-1 rounded-[4px] bg-[#FEF08A] text-[#854D0E] text-xs transition-colors hover:bg-[#FDE047]"
               >
                 Dismiss
               </button>
@@ -223,10 +218,10 @@ export function App() {
 
         {/* Global Loading Spinner */}
         {isLoading && !analysis && (
-          <div className="flex flex-col items-center justify-center py-24 space-y-3">
-            <div className="w-8 h-8 rounded-full border-2 border-gray-700 border-t-blue-500 animate-spin" />
-            <p className="text-xs font-mono text-gray-400">
-              Executing multi-agent integration analysis...
+          <div className="flex flex-col items-center justify-center py-24 space-y-2">
+            <div className="w-6 h-6 rounded-full border-2 border-[#D9D9D4] border-t-[#2563EB] animate-spin" />
+            <p className="text-xs font-mono text-[#6B6B70]">
+              Running integration analysis pipeline...
             </p>
           </div>
         )}
@@ -245,13 +240,13 @@ export function App() {
         )}
 
         {activeTab === 'settings' && (
-          <div className="animate-fadeIn">
+          <div>
             <SettingsTab />
           </div>
         )}
 
         {analysis && activeTab !== 'landing' && activeTab !== 'settings' && (
-          <div className="animate-fadeIn">
+          <div>
             {activeTab === 'overview' && (
               <OverviewTab
                 analysis={analysis}
@@ -323,18 +318,6 @@ export function App() {
         )}
       </main>
 
-      {/* Risk Deep-Dive Detail Modal */}
-      <RiskDetailModal
-        risk={selectedRiskForDetail}
-        isOpen={isRiskDetailModalOpen}
-        onClose={() => setIsRiskDetailModalOpen(false)}
-        onReviewRisk={handleReviewRisk}
-        onOpenResolution={(id) => {
-          setIsRiskDetailModalOpen(false);
-          handleOpenResolutionFromRisks(id);
-        }}
-      />
-
       {/* Connect Repo Modal */}
       <ConnectModal
         isOpen={isConnectModalOpen}
@@ -344,14 +327,14 @@ export function App() {
       />
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-[#30363d] bg-[#161b22] py-4 text-center text-xs text-gray-400">
+      <footer className="mt-auto border-t border-[#E2E2DE] bg-white py-3.5 text-xs text-[#6B6B70]">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <span className="font-mono font-bold text-white">MergeMind</span>
-            <span>— AI GitHub Integration Advisor</span>
+            <span className="font-semibold text-[#18181B]">MergeMind</span>
+            <span>— Cross-Branch Integration Advisor</span>
           </div>
-          <div className="text-[11px] text-gray-400">
-            Human-in-the-Loop Integration Guardrails • Git detects syntax; MergeMind detects behavior.
+          <div className="text-[11px] text-[#929298] font-mono">
+            Human-in-the-Loop Integration Guardrails • Git verifies syntax; MergeMind verifies behavior.
           </div>
         </div>
       </footer>

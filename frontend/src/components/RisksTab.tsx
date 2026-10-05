@@ -1,17 +1,11 @@
 import React, { useState } from 'react';
 import { 
-  FileCode, 
-  Check, 
-  X, 
-  ChevronDown, 
-  ChevronUp, 
+  Search, 
   ArrowRight,
   GitBranch, 
-  Layers, 
-  Info, 
-  Search, 
-  Maximize2,
-  AlertCircle
+  FileCode,
+  CheckCircle2,
+  AlertTriangle
 } from 'lucide-react';
 import { IntegrationRisk, ReviewStatus } from '../types';
 
@@ -31,347 +25,228 @@ export const RisksTab: React.FC<RisksTabProps> = ({
   selectedRiskId
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [filterSeverity, setFilterSeverity] = useState<string>('ALL');
   const [filterType, setFilterType] = useState<string>('ALL');
-  const [filterStatus, setFilterStatus] = useState<string>('ALL');
-  const [expandedEvidenceId, setExpandedEvidenceId] = useState<string | null>(selectedRiskId || 'collision-semantic-auth-bypass');
-  const [showScoreModal, setShowScoreModal] = useState<string | null>(null);
+  const [activeRiskId, setActiveRiskId] = useState<string>(selectedRiskId || risks[0]?.id || '');
 
   const query = searchQuery.trim().toLowerCase();
 
   const filteredRisks = risks.filter((r) => {
-    if (filterType !== 'ALL' && r.collision_type !== filterType && r.risk_level !== filterType) {
-      return false;
-    }
-    if (filterStatus !== 'ALL' && r.review_status !== filterStatus) {
-      return false;
-    }
+    if (filterSeverity !== 'ALL' && r.risk_level !== filterSeverity) return false;
+    if (filterType !== 'ALL' && r.collision_type !== filterType) return false;
     if (query) {
       const matchTitle = r.title.toLowerCase().includes(query);
       const matchSummary = r.summary.toLowerCase().includes(query);
-      const matchFile = r.affected_files.some((f) => f.toLowerCase().includes(query));
-      const matchBranch = r.branches.some((b) => b.toLowerCase().includes(query));
-      const matchCommit = r.commits.some((c) => c.toLowerCase().includes(query));
-      const matchAuthor = r.evidence.some((e) => e.author.toLowerCase().includes(query));
-      if (!matchTitle && !matchSummary && !matchFile && !matchBranch && !matchCommit && !matchAuthor) {
-        return false;
-      }
+      const matchFiles = r.affected_files.some(f => f.toLowerCase().includes(query));
+      if (!matchTitle && !matchSummary && !matchFiles) return false;
     }
     return true;
   });
 
+  const selectedRisk = risks.find(r => r.id === activeRiskId) || filteredRisks[0] || risks[0];
+
+  const getSeverityBadge = (level: string) => {
+    switch (level) {
+      case 'CRITICAL':
+        return 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]';
+      case 'HIGH':
+        return 'bg-[#FFF7ED] border-[#FFEDD5] text-[#9A3412]';
+      case 'MEDIUM':
+        return 'bg-[#FEFCE8] border-[#FEF08A] text-[#854D0E]';
+      default:
+        return 'bg-[#F0FDF4] border-[#DCFCE7] text-[#166534]';
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {/* Search & Filter Bar (Section 6 & 23 requirement) */}
-      <div className="p-3.5 rounded-lg bg-[#161b22] border border-[#30363d] space-y-3 text-xs">
-        {/* Search input */}
-        <div className="relative">
-          <Search className="w-4 h-4 text-gray-500 absolute left-3 top-2.5" />
+      {/* Search & Filter Toolbar */}
+      <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-3 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="relative flex-1 min-w-[240px]">
+          <Search className="w-4 h-4 text-[#929298] absolute left-3 top-2.5" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search risks by file name, branch, commit hash, author, or issue keyword..."
-            className="w-full pl-9 pr-3.5 py-2 rounded bg-[#0d1117] border border-[#30363d] text-white text-xs font-mono focus:outline-none focus:border-blue-500"
+            placeholder="Search by file name, API route, branch, or issue keyword..."
+            className="w-full pl-9 pr-3 py-1.5 rounded-[6px] bg-[#F7F7F5] border border-[#E2E2DE] text-[#18181B] text-xs font-mono focus:outline-none focus:border-[#2563EB] focus:bg-white"
           />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-2 text-gray-500 hover:text-white text-xs font-mono"
-            >
-              Clear
-            </button>
-          )}
         </div>
 
-        {/* Filter buttons */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="font-mono text-gray-500 mr-1 text-[11px]">FILTER:</span>
-            {['ALL', 'CRITICAL', 'HIGH', 'MEDIUM', 'SEMANTIC', 'API_CONTRACT', 'DEPENDENCY'].map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilterType(f)}
-                className={`px-2.5 py-1 rounded text-xs font-mono transition-colors ${
-                  filterType === f
-                    ? 'bg-[#21262d] text-white border border-gray-600 font-semibold'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#21262d]/50'
-                }`}
-              >
-                {f.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-mono text-gray-500">STATE:</span>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-2 py-1 text-xs font-mono rounded bg-[#0d1117] border border-[#30363d] text-gray-200 focus:outline-none"
+        <div className="flex items-center gap-2 font-mono text-[11px]">
+          <span className="text-[#6B6B70]">Severity:</span>
+          {['ALL', 'CRITICAL', 'HIGH', 'MEDIUM'].map(lvl => (
+            <button
+              key={lvl}
+              onClick={() => setFilterSeverity(lvl)}
+              className={`px-2 py-1 rounded-[4px] transition-colors ${
+                filterSeverity === lvl
+                  ? 'bg-[#18181B] text-white font-medium'
+                  : 'bg-[#F1F1EF] text-[#6B6B70] hover:bg-[#E2E2DE]'
+              }`}
             >
-              <option value="ALL">All States</option>
-              <option value="PENDING">Pending Review</option>
-              <option value="REVIEWED">Reviewed</option>
-              <option value="DISMISSED">Dismissed</option>
-            </select>
-          </div>
+              {lvl}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Empty State (Section 22 requirement) */}
-      {filteredRisks.length === 0 && (
-        <div className="p-8 rounded-lg bg-[#161b22] border border-[#30363d] text-center text-xs space-y-2">
-          <div className="font-mono text-gray-300 font-bold">No integration risks match your search criteria.</div>
-          <p className="text-gray-500 max-w-md mx-auto text-[11px]">
-            This does not guarantee that the repository is risk-free. Adjust your search filters or re-run analysis after new commits are pushed.
-          </p>
-          <button
-            onClick={() => {
-              setSearchQuery('');
-              setFilterType('ALL');
-              setFilterStatus('ALL');
-            }}
-            className="px-3 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-300 text-xs font-mono mt-2"
-          >
-            Reset Filters
-          </button>
+      {/* Main Two-Column Engineering Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        
+        {/* Left Column: Finding Index (Table style) */}
+        <div className="lg:col-span-5 bg-white border border-[#E2E2DE] rounded-[8px] overflow-hidden">
+          <div className="px-3.5 py-2.5 border-b border-[#E2E2DE] bg-[#FAFAFA] flex items-center justify-between text-xs font-mono">
+            <span className="font-semibold text-[#18181B]">FINDINGS ({filteredRisks.length})</span>
+            <span className="text-[#929298]">Select finding to inspect</span>
+          </div>
+
+          <div className="divide-y divide-[#E2E2DE] max-h-[700px] overflow-y-auto">
+            {filteredRisks.map(r => {
+              const isSelected = r.id === selectedRisk?.id;
+              return (
+                <div
+                  key={r.id}
+                  onClick={() => setActiveRiskId(r.id)}
+                  className={`p-3.5 cursor-pointer transition-colors text-xs ${
+                    isSelected ? 'bg-[#F1F1EF] border-l-2 border-[#2563EB]' : 'hover:bg-[#F8F8F6]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={`px-1.5 py-0.2 rounded-[4px] border text-[10px] font-mono font-semibold ${getSeverityBadge(r.risk_level)}`}>
+                      {r.risk_level}
+                    </span>
+                    <span className="font-mono text-[11px] font-semibold text-[#18181B]">
+                      {r.risk_score.total}/100
+                    </span>
+                  </div>
+
+                  <div className="font-medium text-[#18181B] mt-1 line-clamp-1">
+                    {r.title}
+                  </div>
+
+                  <div className="flex items-center gap-2 mt-1.5 text-[11px] font-mono text-[#6B6B70]">
+                    <span>{r.collision_type}</span>
+                    <span>•</span>
+                    <span className="truncate">{r.affected_files[0]}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      )}
 
-      {/* Risks List */}
-      <div className="space-y-3">
-        {filteredRisks.map((risk) => {
-          const isCrit = risk.risk_level === 'CRITICAL';
-          const isHigh = risk.risk_level === 'HIGH';
-          const isEvidenceOpen = expandedEvidenceId === risk.id;
-
-          return (
-            <div
-              key={risk.id}
-              className={`rounded-lg border transition-colors ${
-                risk.review_status === 'REVIEWED'
-                  ? 'bg-[#161b22]/70 border-emerald-900/60'
-                  : risk.review_status === 'DISMISSED'
-                  ? 'bg-[#161b22]/50 border-gray-800 opacity-60'
-                  : 'bg-[#161b22] border-[#30363d]'
-              }`}
-            >
-              {/* Card Main */}
-              <div className="p-4 space-y-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold border flex items-center gap-1.5 ${
-                      isCrit
-                        ? 'bg-red-950/80 text-red-300 border-red-800'
-                        : isHigh
-                        ? 'bg-orange-950/80 text-orange-300 border-orange-800'
-                        : 'bg-amber-950/70 text-amber-300 border-amber-800'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        isCrit ? 'bg-red-500' : isHigh ? 'bg-orange-500' : 'bg-amber-500'
-                      }`} />
-                      {risk.risk_level}
-                    </span>
-
-                    <button
-                      onClick={() => setShowScoreModal(showScoreModal === risk.id ? null : risk.id)}
-                      className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#0d1117] text-gray-300 border border-[#30363d] hover:border-gray-500 transition-colors flex items-center gap-1"
-                      title="View calculation breakdown"
-                    >
-                      Score: {risk.risk_score.total}/100
-                      <Info className="w-3 h-3 text-gray-400" />
-                    </button>
-
-                    <span className="px-2 py-0.5 rounded text-[11px] font-mono bg-[#0d1117] text-gray-400 border border-[#30363d]">
-                      {risk.collision_type}
-                    </span>
-
-                    {risk.review_status === 'REVIEWED' && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800">
-                        REVIEWED
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5 text-xs font-mono text-gray-400">
-                    <GitBranch className="w-3 h-3 text-blue-400" />
-                    <span>{risk.branches[0]}</span>
-                    <span className="text-gray-600">↔</span>
-                    <span>{risk.branches[1]}</span>
-                  </div>
-                </div>
-
-                {/* Score breakdown drawer */}
-                {showScoreModal === risk.id && (
-                  <div className="p-3 rounded bg-[#0d1117] border border-[#30363d] text-xs font-mono space-y-2">
-                    <div className="text-gray-400 text-[11px] flex justify-between">
-                      <span>RISK SCORE METRIC BREAKDOWN</span>
-                      <span className="text-white font-bold">{risk.risk_score.total} / 100</span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px]">
-                      <div className="p-2 rounded bg-[#161b22] border border-[#30363d]">
-                        <div className="text-gray-500">Code Overlap</div>
-                        <div className="text-gray-200 font-bold">{risk.risk_score.code_overlap}/30</div>
-                      </div>
-                      <div className="p-2 rounded bg-[#161b22] border border-[#30363d]">
-                        <div className="text-gray-500">Dependency</div>
-                        <div className="text-gray-200 font-bold">{risk.risk_score.dependency_interaction}/20</div>
-                      </div>
-                      <div className="p-2 rounded bg-[#161b22] border border-[#30363d]">
-                        <div className="text-gray-500">API Impact</div>
-                        <div className="text-gray-200 font-bold">{risk.risk_score.api_impact}/20</div>
-                      </div>
-                      <div className="p-2 rounded bg-[#161b22] border border-[#30363d]">
-                        <div className="text-gray-500">Security</div>
-                        <div className="text-gray-200 font-bold">{risk.risk_score.security_impact}/20</div>
-                      </div>
-                      <div className="p-2 rounded bg-[#161b22] border border-[#30363d]">
-                        <div className="text-gray-500">Test Uncertainty</div>
-                        <div className="text-gray-200 font-bold">{risk.risk_score.test_coverage_uncertainty}/10</div>
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-gray-400 font-sans">
-                      {risk.risk_score.explanation}
-                    </p>
-                  </div>
-                )}
-
-                <h3 className="text-sm font-semibold text-white">
-                  {risk.title}
-                </h3>
-                <p className="text-xs text-gray-300 leading-relaxed font-sans">
-                  {risk.summary}
-                </p>
-
-                {/* Affected Meta */}
-                <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 pt-1 font-mono">
-                  <div>
-                    Files: <span className="text-gray-200">{risk.affected_files.join(', ')}</span>
-                  </div>
-                  <span className="text-gray-600">|</span>
-                  <div>
-                    Components: <span className="text-gray-200">{risk.affected_components.join(', ')}</span>
-                  </div>
-                  <span className="text-gray-600">|</span>
-                  <div>
-                    Confidence: <span className="text-gray-200">{Math.round(risk.confidence * 100)}%</span>
-                  </div>
-                </div>
-
-                {/* Disclaimer */}
-                <div className="text-[11px] text-gray-400 bg-[#0d1117] p-2 rounded border border-[#30363d] flex items-center gap-2 font-mono">
-                  <AlertCircle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span>{risk.ai_disclaimer}</span>
-                </div>
-              </div>
-
-              {/* Action Ribbon */}
-              <div className="px-4 py-2.5 bg-[#0d1117] border-t border-[#30363d] flex flex-wrap items-center justify-between gap-2 text-xs">
+        {/* Right Column: Deep-Dive Inspection Panel */}
+        {selectedRisk && (
+          <div className="lg:col-span-7 bg-white border border-[#E2E2DE] rounded-[8px] p-5 space-y-5">
+            {/* Finding Header */}
+            <div className="border-b border-[#E2E2DE] pb-4 space-y-2">
+              <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setExpandedEvidenceId(isEvidenceOpen ? null : risk.id)}
-                    className="px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-200 font-medium border border-[#30363d] transition-colors flex items-center gap-1.5 text-xs font-mono"
-                  >
-                    <span>{isEvidenceOpen ? 'Hide Evidence' : 'View Evidence'}</span>
-                    {isEvidenceOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                  </button>
-
-                  <button
-                    onClick={() => onOpenDetailModal(risk)}
-                    className="px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-200 font-medium border border-[#30363d] transition-colors flex items-center gap-1 text-xs font-mono"
-                  >
-                    <Maximize2 className="w-3 h-3 text-gray-400" />
-                    <span>Deep-Dive Detail</span>
-                  </button>
-
-                  <button
-                    onClick={() => onOpenResolution(risk.id)}
-                    className="px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-blue-400 font-medium border border-blue-900/60 transition-colors flex items-center gap-1.5 text-xs font-mono"
-                  >
-                    <span>Resolution Plan</span>
-                    <ArrowRight className="w-3 h-3" />
-                  </button>
+                  <span className={`px-2 py-0.5 rounded-[4px] border text-xs font-mono font-semibold ${getSeverityBadge(selectedRisk.risk_level)}`}>
+                    {selectedRisk.risk_level}
+                  </span>
+                  <span className="font-mono text-xs text-[#6B6B70] px-2 py-0.5 rounded bg-[#F1F1EF]">
+                    {selectedRisk.collision_type}
+                  </span>
                 </div>
-
-                <div className="flex items-center gap-2 font-mono">
-                  {risk.review_status !== 'REVIEWED' && (
-                    <button
-                      onClick={() => onReviewRisk(risk.id, 'REVIEWED', 'Verified by developer')}
-                      className="px-2.5 py-1 rounded bg-emerald-950 hover:bg-emerald-900 text-emerald-200 border border-emerald-800 text-xs font-medium transition-colors flex items-center gap-1"
-                    >
-                      <Check className="w-3 h-3" />
-                      Mark Reviewed
-                    </button>
-                  )}
-
-                  {risk.review_status !== 'DISMISSED' && (
-                    <button
-                      onClick={() => onReviewRisk(risk.id, 'DISMISSED', 'Dismissed by developer')}
-                      className="px-2 py-1 rounded bg-[#161b22] hover:bg-[#21262d] text-gray-400 border border-[#30363d] text-xs transition-colors flex items-center gap-1"
-                    >
-                      <X className="w-3 h-3" />
-                      Dismiss
-                    </button>
-                  )}
-
-                  {risk.review_status !== 'PENDING' && (
-                    <button
-                      onClick={() => onReviewRisk(risk.id, 'PENDING')}
-                      className="text-gray-500 hover:text-gray-300 text-[11px] underline font-mono"
-                    >
-                      Reset
-                    </button>
-                  )}
+                <div className="text-right">
+                  <span className="text-xs font-mono text-[#6B6B70]">Risk Score: </span>
+                  <span className="text-sm font-mono font-bold text-[#18181B]">{selectedRisk.risk_score.total}/100</span>
                 </div>
               </div>
 
-              {/* Collapsible Evidence Section */}
-              {isEvidenceOpen && (
-                <div className="p-4 border-t border-[#30363d] bg-[#0d1117] space-y-3">
-                  <div className="text-xs font-mono font-semibold uppercase text-gray-400">
-                    Commit Diff Evidence ({risk.evidence.length} observations)
-                  </div>
+              <h2 className="text-base font-semibold text-[#18181B] tracking-tight">
+                {selectedRisk.title}
+              </h2>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {risk.evidence.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="p-3 rounded bg-[#161b22] border border-[#30363d] space-y-1.5 text-xs font-mono"
-                      >
-                        <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-blue-400 font-bold">{item.commit_sha}</span>
-                          <span className="text-gray-500">{item.branch}</span>
-                        </div>
-                        <div className="text-gray-200 font-sans text-xs">
-                          "{item.commit_message}"
-                        </div>
-                        <div className="text-[10px] text-gray-500">
-                          Author: {item.author}
-                        </div>
-                        <div className="p-2 rounded bg-[#0d1117] border border-[#30363d] text-gray-300 overflow-x-auto text-[11px]">
-                          <code>{item.snippet_or_symbol}</code>
-                        </div>
-                        <div className="text-[11px] text-gray-400 font-sans pt-1">
-                          {item.observation}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+              <div className="flex flex-wrap items-center gap-3 text-xs font-mono text-[#6B6B70]">
+                <span>Branches: <strong className="text-[#18181B]">{selectedRisk.branches.join(' ↔ ')}</strong></span>
+                <span>•</span>
+                <span>Files: <strong className="text-[#18181B]">{selectedRisk.affected_files.join(', ')}</strong></span>
+              </div>
+            </div>
 
-                  <div className="p-3 rounded bg-[#161b22] border border-[#30363d] text-xs space-y-1">
-                    <div className="text-gray-400 font-mono text-[11px]">TECHNICAL RATIONALE:</div>
-                    <p className="text-gray-300 leading-relaxed font-sans">
-                      {risk.why_it_exists}
-                    </p>
-                    <div className="text-red-400 text-[11px] font-mono pt-1">
-                      POTENTIAL IMPACT: {risk.potential_impact}
+            {/* Why It Exists & Technical Summary */}
+            <div className="space-y-3 text-xs leading-relaxed">
+              <div>
+                <h3 className="font-mono font-semibold uppercase text-[11px] text-[#6B6B70] mb-1">
+                  Root Cause & Semantic Overlap
+                </h3>
+                <p className="text-[#18181B] bg-[#F7F7F5] border border-[#E2E2DE] rounded-[6px] p-3">
+                  {selectedRisk.why_it_exists}
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-mono font-semibold uppercase text-[11px] text-[#6B6B70] mb-1">
+                  Potential Runtime Impact
+                </h3>
+                <p className="text-[#991B1B] bg-[#FEF2F2] border border-[#FECACA] rounded-[6px] p-3">
+                  {selectedRisk.potential_impact}
+                </p>
+              </div>
+            </div>
+
+            {/* Evidence Diff Presentation */}
+            <div className="space-y-2">
+              <h3 className="font-mono font-semibold uppercase text-[11px] text-[#6B6B70]">
+                Code Evidence & Commit Hunks
+              </h3>
+              <div className="space-y-2">
+                {selectedRisk.evidence.map((ev, idx) => (
+                  <div key={idx} className="border border-[#E2E2DE] rounded-[6px] overflow-hidden text-xs">
+                    <div className="bg-[#F1F1EF] px-3 py-1.5 border-b border-[#E2E2DE] flex items-center justify-between font-mono text-[11px] text-[#6B6B70]">
+                      <span>{ev.branch} • commit <code className="text-[#18181B]">{ev.commit_sha}</code></span>
+                      <span>{ev.author}</span>
+                    </div>
+                    <div className="p-2.5 font-mono text-[11px] bg-[#18181B] text-[#E2E2DE] overflow-x-auto">
+                      <pre><code>{ev.snippet_or_symbol}</code></pre>
+                    </div>
+                    <div className="px-3 py-1.5 bg-[#FAFAFA] text-[11px] text-[#6B6B70] border-t border-[#E2E2DE]">
+                      {ev.observation}
                     </div>
                   </div>
-                </div>
-              )}
+                ))}
+              </div>
             </div>
-          );
-        })}
+
+            {/* Actions Bar */}
+            <div className="border-t border-[#E2E2DE] pt-4 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onReviewRisk(selectedRisk.id, 'REVIEWED')}
+                  className={`px-3 py-1.5 rounded-[6px] text-xs font-medium border transition-colors ${
+                    selectedRisk.review_status === 'REVIEWED'
+                      ? 'bg-[#F0FDF4] border-[#BBF7D0] text-[#166534]'
+                      : 'bg-white border-[#D9D9D4] text-[#27272A] hover:bg-[#F1F1EF]'
+                  }`}
+                >
+                  {selectedRisk.review_status === 'REVIEWED' ? '✓ Marked Reviewed' : 'Mark Reviewed'}
+                </button>
+                <button
+                  onClick={() => onReviewRisk(selectedRisk.id, 'DISMISSED')}
+                  className={`px-3 py-1.5 rounded-[6px] text-xs font-medium border transition-colors ${
+                    selectedRisk.review_status === 'DISMISSED'
+                      ? 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]'
+                      : 'bg-white border-[#D9D9D4] text-[#27272A] hover:bg-[#F1F1EF]'
+                  }`}
+                >
+                  Dismiss
+                </button>
+              </div>
+
+              <button
+                onClick={() => onOpenResolution(selectedRisk.id)}
+                className="px-3.5 py-1.5 rounded-[6px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-medium transition-colors flex items-center gap-1.5"
+              >
+                <span>View Reconciliation Patch</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     </div>
   );

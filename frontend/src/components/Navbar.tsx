@@ -3,16 +3,15 @@ import {
   GitBranch, 
   GitPullRequest, 
   GitCommit, 
-  AlertTriangle, 
-  ShieldAlert, 
-  CheckCircle2, 
-  Layers, 
-  Cpu, 
   FolderGit2,
-  Terminal,
+  RefreshCw, 
+  Settings,
+  Layers,
+  ShieldAlert,
   Code2,
-  RefreshCw,
-  Settings
+  CheckCircle2,
+  Terminal,
+  Cpu
 } from 'lucide-react';
 import { RepositoryAnalysis } from '../types';
 
@@ -34,17 +33,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   isLoading
 }) => {
   const tabs = [
-    { id: 'landing', label: 'Product Tour', icon: Layers },
-    { id: 'overview', label: 'Overview', icon: Layers },
-    { id: 'risks', label: 'Integration Risks', icon: ShieldAlert, count: analysis?.detected_risks.length },
-    { id: 'pull_requests', label: 'Pull Requests', icon: GitPullRequest, count: analysis?.pull_requests?.length },
-    { id: 'reconciliation', label: 'Reconciliation Patches', icon: Code2, count: analysis?.compatibility_patches?.length },
-    { id: 'comparison', label: 'Branch Comparison', icon: GitBranch },
-    { id: 'commits', label: 'Commit Graph', icon: GitCommit },
-    { id: 'resolutions', label: 'Resolution Center', icon: CheckCircle2 },
-    { id: 'tests', label: 'Test Recommendations', icon: Terminal },
-    { id: 'pipeline', label: 'Agent Pipeline', icon: Cpu },
-    { id: 'settings', label: 'AI Settings', icon: Settings },
+    { id: 'overview', label: 'Overview', count: undefined },
+    { id: 'risks', label: 'Risk Findings', count: analysis?.detected_risks.length },
+    { id: 'pull_requests', label: 'Pull Requests', count: analysis?.pull_requests?.length },
+    { id: 'reconciliation', label: 'Patches', count: analysis?.compatibility_patches?.length },
+    { id: 'comparison', label: 'Branch Compare' },
+    { id: 'commits', label: 'Commits', count: analysis?.commits?.length },
+    { id: 'resolutions', label: 'Resolution Center' },
+    { id: 'tests', label: 'Tests' },
+    { id: 'pipeline', label: 'Pipeline' },
+    { id: 'settings', label: 'Settings' },
   ];
 
   const criticalCount = analysis?.risk_summary?.CRITICAL || 0;
@@ -53,143 +51,119 @@ export const Navbar: React.FC<NavbarProps> = ({
   const lowCount = analysis?.risk_summary?.LOW || 0;
 
   return (
-    <header className="bg-[#161b22] border-b border-[#30363d] sticky top-0 z-40 select-none">
-      {/* Top Header */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          
-          {/* Logo & Product Meta */}
-          <div 
-            onClick={() => setActiveTab('landing')}
-            className="flex items-center space-x-3 cursor-pointer group"
-            title="Return to Product Tour & Vision"
+    <header className="bg-white border-b border-[#E2E2DE] sticky top-0 z-40 select-none">
+      {/* Top Main Bar */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
+        
+        {/* Brand & Repository Context */}
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setActiveTab('overview')}
+            className="flex items-center gap-2 text-left group"
           >
-            <div className="w-8 h-8 rounded-lg bg-[#21262d] border border-[#30363d] flex items-center justify-center text-gray-200 group-hover:border-blue-500 transition-colors">
-              <GitBranch className="w-4 h-4 text-blue-400 stroke-[2]" />
+            {/* Simple restrained geometric branch mark */}
+            <div className="w-7 h-7 rounded-[6px] bg-[#18181B] flex items-center justify-center text-white">
+              <GitBranch className="w-4 h-4 stroke-[2.2]" />
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="text-base font-semibold tracking-tight text-white font-mono group-hover:text-blue-400 transition-colors">MergeMind</span>
-                <span className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-[#21262d] text-gray-300 border border-[#30363d]">
-                  advisor v1.0
-                </span>
-              </div>
-              <p className="text-[11px] text-gray-400 font-sans">
-                Behavioral conflict detection & code reconciliation for parallel GitHub repositories
-              </p>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-sm font-semibold tracking-tight text-[#18181B]">MergeMind</span>
+              <span className="text-[11px] font-mono text-[#929298]">v1.0</span>
             </div>
-          </div>
+          </button>
 
-          {/* Repo Info & Risk Metrics */}
+          <span className="text-[#D9D9D4] hidden sm:inline">/</span>
+
           {analysis && (
-            <div className="flex flex-wrap items-center gap-2 text-xs font-mono">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0d1117] border border-[#30363d] text-gray-300">
-                <FolderGit2 className="w-3.5 h-3.5 text-gray-400" />
-                <span className="text-white font-medium">{analysis.repository_name}</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-[6px] bg-[#F1F1EF] border border-[#E2E2DE] text-xs font-mono text-[#18181B]">
+                <FolderGit2 className="w-3.5 h-3.5 text-[#6B6B70]" />
+                <span className="font-medium truncate max-w-[200px] sm:max-w-none">{analysis.repository_name}</span>
                 {analysis.is_demo ? (
-                  <span className="ml-1 px-1.5 py-0.5 rounded bg-purple-950/80 border border-purple-800 text-[10px] text-purple-300 font-bold">
-                    DEMO MODE
+                  <span className="ml-1 px-1.5 py-0.2 rounded-[4px] bg-[#FEF08A] text-[#854D0E] text-[10px] font-semibold">
+                    demo
                   </span>
                 ) : (
-                  <span className="ml-1 px-1.5 py-0.5 rounded bg-emerald-950/80 border border-emerald-800 text-[10px] text-emerald-300 font-bold">
-                    LIVE REPO
+                  <span className="ml-1 px-1.5 py-0.2 rounded-[4px] bg-[#DCFCE7] text-[#166534] text-[10px] font-semibold">
+                    live
                   </span>
                 )}
               </div>
 
-              <div className="hidden lg:flex items-center gap-2.5 px-2.5 py-1 rounded bg-[#0d1117] border border-[#30363d] text-gray-400">
-                <span>{analysis.branches.length} branches</span>
-                <span className="text-gray-600">|</span>
-                <span>{analysis.commits.length} commits</span>
-                <span className="text-gray-600">|</span>
-                <span>{analysis.pull_requests.length} PRs</span>
-              </div>
-
-              {/* Status pills */}
-              <div className="flex items-center gap-1">
+              {/* Status summary pill */}
+              <div className="hidden lg:flex items-center gap-1.5 text-xs font-mono text-[#6B6B70]">
                 {criticalCount > 0 && (
-                  <span className="px-2 py-0.5 rounded text-[11px] bg-red-950/70 border border-red-800 text-red-300 font-medium flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-[#FEF2F2] border border-[#FECACA] text-[#991B1B] text-[11px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#DC2626]"></span>
                     {criticalCount} Critical
                   </span>
                 )}
                 {highCount > 0 && (
-                  <span className="px-2 py-0.5 rounded text-[11px] bg-orange-950/70 border border-orange-800 text-orange-300 font-medium flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-[#FFF7ED] border border-[#FFEDD5] text-[#9A3412] text-[11px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#EA580C]"></span>
                     {highCount} High
                   </span>
                 )}
                 {mediumCount > 0 && (
-                  <span className="px-2 py-0.5 rounded text-[11px] bg-amber-950/60 border border-amber-800/80 text-amber-300 font-medium flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-[#FEFCE8] border border-[#FEF08A] text-[#854D0E] text-[11px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#CA8A04]"></span>
                     {mediumCount} Medium
                   </span>
                 )}
                 {lowCount > 0 && (
-                  <span className="px-2 py-0.5 rounded text-[11px] bg-[#161b22] border border-[#30363d] text-gray-300 font-medium flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-[#F0FDF4] border border-[#DCFCE7] text-[#166534] text-[11px] font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]"></span>
                     {lowCount} Low
                   </span>
                 )}
               </div>
             </div>
           )}
-
-          {/* Action buttons */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onLoadDemo}
-              disabled={isLoading}
-              className="px-2.5 py-1 text-xs font-medium rounded bg-[#21262d] hover:bg-[#30363d] text-gray-200 border border-[#30363d] transition-colors flex items-center gap-1.5 disabled:opacity-50"
-              title="Re-execute multi-agent analysis on repository"
-            >
-              <RefreshCw className={`w-3 h-3 text-blue-400 ${isLoading ? 'animate-spin' : ''}`} />
-              Re-Analyze
-            </button>
-            <button
-              onClick={onOpenConnectModal}
-              disabled={isLoading}
-              className="px-2.5 py-1 text-xs font-medium rounded bg-[#238636] hover:bg-[#2ea043] text-white transition-colors flex items-center gap-1.5 disabled:opacity-50"
-            >
-              <FolderGit2 className="w-3 h-3 text-white" />
-              Connect Repo
-            </button>
-          </div>
         </div>
 
-        {/* Warning notification banner if any */}
-        {analysis?.warning_message && (
-          <div className="mt-2 px-3 py-1.5 rounded bg-amber-950/40 border border-amber-800/60 text-amber-300 text-xs flex items-center gap-2 font-mono">
-            <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-400" />
-            <span>{analysis.warning_message}</span>
-          </div>
-        )}
+        {/* Action Buttons */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onLoadDemo}
+            disabled={isLoading}
+            className="px-2.5 py-1.5 text-xs font-medium rounded-[6px] bg-white hover:bg-[#F1F1EF] text-[#27272A] border border-[#D9D9D4] transition-colors flex items-center gap-1.5 disabled:opacity-50"
+            title="Refresh repository analysis"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-[#6B6B70] ${isLoading ? 'animate-spin' : ''}`} />
+            <span>Re-analyze</span>
+          </button>
+          <button
+            onClick={onOpenConnectModal}
+            disabled={isLoading}
+            className="px-3 py-1.5 text-xs font-medium rounded-[6px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors flex items-center gap-1.5 shadow-none disabled:opacity-50"
+          >
+            <FolderGit2 className="w-3.5 h-3.5" />
+            <span>Connect repo</span>
+          </button>
+        </div>
       </div>
 
       {/* Tabs Row */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-[#30363d]">
-        <nav className="flex space-x-1 overflow-x-auto py-1 text-xs">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-[#E2E2DE] overflow-x-auto">
+        <nav className="flex space-x-1 py-1.5 text-xs">
           {tabs.map((tab) => {
-            const Icon = tab.icon;
             const isActive = activeTab === tab.id;
             return (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-[6px] text-xs font-medium transition-colors whitespace-nowrap flex items-center gap-1.5 ${
                   isActive
-                    ? 'bg-[#21262d] text-white border-b-2 border-blue-500 rounded-b-none'
-                    : 'text-gray-400 hover:text-gray-200 hover:bg-[#21262d]/50'
+                    ? 'bg-[#F1F1EF] text-[#18181B] font-semibold'
+                    : 'text-[#6B6B70] hover:text-[#18181B] hover:bg-[#F7F7F5]'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-blue-400' : 'text-gray-400'}`} />
                 <span>{tab.label}</span>
                 {typeof tab.count === 'number' && (
                   <span
-                    className={`ml-1 px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                    className={`px-1.5 py-0.2 rounded-[4px] text-[10px] font-mono ${
                       isActive
-                        ? 'bg-blue-900/60 text-blue-200 border border-blue-700/60'
-                        : 'bg-[#21262d] text-gray-400'
+                        ? 'bg-white text-[#18181B] border border-[#D9D9D4]'
+                        : 'bg-[#F1F1EF] text-[#6B6B70]'
                     }`}
                   >
                     {tab.count}

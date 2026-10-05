@@ -1,13 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   GitBranch, 
-  FileCode, 
-  RefreshCw, 
-  ArrowLeftRight, 
-  AlertTriangle, 
-  ShieldAlert,
-  Layers,
-  Code2
+  ArrowLeftRight
 } from 'lucide-react';
 import { RepositoryAnalysis } from '../types';
 import { API_BASE } from '../config';
@@ -45,20 +39,14 @@ export const BranchComparisonTab: React.FC<BranchComparisonTabProps> = ({
   const filesA = Array.from(new Set(commitsA.flatMap((c) => c.files_changed)));
   const filesB = Array.from(new Set(commitsB.flatMap((c) => c.files_changed)));
   const commonFiles = filesA.filter((f) => filesB.includes(f));
-  const uniqueA = filesA.filter((f) => !filesB.includes(f));
-  const uniqueB = filesB.filter((f) => !filesA.includes(f));
-  const allUniqueFiles = Array.from(new Set([...filesA, ...filesB]));
 
-  // Compute severity per file (Section 9 requirement)
+  // Compute severity per file
   const getFileSeverity = (filename: string): 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' => {
     const risk = analysis.detected_risks.find((r) => r.affected_files.includes(filename));
-    if (risk) {
-      return risk.risk_level;
-    }
+    if (risk) return risk.risk_level;
     return commonFiles.includes(filename) ? 'MEDIUM' : 'LOW';
   };
 
-  // Fetch file diff content when selectedFile changes
   useEffect(() => {
     if (!selectedFile) return;
     setIsDiffLoading(true);
@@ -73,25 +61,32 @@ export const BranchComparisonTab: React.FC<BranchComparisonTabProps> = ({
       });
   }, [selectedFile, branchA, branchB]);
 
-  const handleRunComparison = () => {
-    onCompareBranches(branchA, branchB);
-  };
+  const allFiles = Array.from(new Set([...filesA, ...filesB]));
 
-  const relevantRisk = analysis.detected_risks.find((r) =>
-    r.affected_files.includes(selectedFile)
-  );
+  const getSeverityBadge = (level: string) => {
+    switch (level) {
+      case 'CRITICAL':
+        return 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]';
+      case 'HIGH':
+        return 'bg-[#FFF7ED] border-[#FFEDD5] text-[#9A3412]';
+      case 'MEDIUM':
+        return 'bg-[#FEFCE8] border-[#FEF08A] text-[#854D0E]';
+      default:
+        return 'bg-[#F0FDF4] border-[#DCFCE7] text-[#166534]';
+    }
+  };
 
   return (
     <div className="space-y-4">
-      {/* Branch Selector Bar */}
-      <div className="p-3.5 rounded-lg bg-[#161b22] border border-[#30363d] flex flex-wrap items-center justify-between gap-3 text-xs">
+      {/* Branch Selector Toolbar */}
+      <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-3.5 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-gray-500">BRANCH A:</span>
+            <span className="font-mono text-[#6B6B70]">BRANCH A:</span>
             <select
               value={branchA}
               onChange={(e) => setBranchA(e.target.value)}
-              className="px-2.5 py-1 text-xs font-mono rounded bg-[#0d1117] border border-[#30363d] text-white focus:outline-none"
+              className="px-2.5 py-1 text-xs font-mono rounded-[6px] bg-[#F7F7F5] border border-[#E2E2DE] text-[#18181B] focus:outline-none focus:border-[#2563EB]"
             >
               {analysis.branches.filter(b => b !== 'main').map((b) => (
                 <option key={b} value={b}>{b}</option>
@@ -99,14 +94,14 @@ export const BranchComparisonTab: React.FC<BranchComparisonTabProps> = ({
             </select>
           </div>
 
-          <ArrowLeftRight className="w-3.5 h-3.5 text-gray-500" />
+          <ArrowLeftRight className="w-3.5 h-3.5 text-[#929298]" />
 
           <div className="flex items-center gap-2">
-            <span className="font-mono text-gray-500">BRANCH B:</span>
+            <span className="font-mono text-[#6B6B70]">BRANCH B:</span>
             <select
               value={branchB}
               onChange={(e) => setBranchB(e.target.value)}
-              className="px-2.5 py-1 text-xs font-mono rounded bg-[#0d1117] border border-[#30363d] text-white focus:outline-none"
+              className="px-2.5 py-1 text-xs font-mono rounded-[6px] bg-[#F7F7F5] border border-[#E2E2DE] text-[#18181B] focus:outline-none focus:border-[#2563EB]"
             >
               {analysis.branches.filter(b => b !== 'main').map((b) => (
                 <option key={b} value={b}>{b}</option>
@@ -116,184 +111,80 @@ export const BranchComparisonTab: React.FC<BranchComparisonTabProps> = ({
         </div>
 
         <button
-          onClick={handleRunComparison}
-          disabled={isLoading || branchA === branchB}
-          className="px-3 py-1.5 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-200 text-xs font-medium border border-[#30363d] transition-colors flex items-center gap-1.5 disabled:opacity-50 font-mono"
+          onClick={() => onCompareBranches(branchA, branchB)}
+          disabled={isLoading}
+          className="px-3 py-1.5 rounded-[6px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-medium text-xs transition-colors disabled:opacity-50"
         >
-          <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
-          Run Cross-Branch Collision Check
+          {isLoading ? 'Comparing...' : 'Run comparison'}
         </button>
       </div>
 
-      {/* Comparison Dimensions Metric Summary (Section 9 requirement) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs font-mono">
-        <div className="p-3 rounded bg-[#161b22] border border-[#30363d]">
-          <div className="text-gray-500 text-[10px]">COMMON FILES (OVERLAP)</div>
-          <div className="text-lg font-bold text-amber-400">{commonFiles.length} files</div>
-          <div className="text-[10px] text-gray-500 truncate">{commonFiles.join(', ') || 'None'}</div>
-        </div>
-
-        <div className="p-3 rounded bg-[#161b22] border border-[#30363d]">
-          <div className="text-gray-500 text-[10px]">UNIQUE TO {branchA}</div>
-          <div className="text-lg font-bold text-blue-400">{uniqueA.length} files</div>
-          <div className="text-[10px] text-gray-500 truncate">{uniqueA.join(', ') || 'None'}</div>
-        </div>
-
-        <div className="p-3 rounded bg-[#161b22] border border-[#30363d]">
-          <div className="text-gray-500 text-[10px]">UNIQUE TO {branchB}</div>
-          <div className="text-lg font-bold text-purple-400">{uniqueB.length} files</div>
-          <div className="text-[10px] text-gray-500 truncate">{uniqueB.join(', ') || 'None'}</div>
-        </div>
-
-        <div className="p-3 rounded bg-[#161b22] border border-[#30363d]">
-          <div className="text-gray-500 text-[10px]">POTENTIAL SEMANTIC RISKS</div>
-          <div className="text-lg font-bold text-red-400">
-            {analysis.detected_risks.filter(r => r.branches.includes(branchA) && r.branches.includes(branchB)).length}
+      {/* Main 2-Col Diff & Matrix */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+        {/* Left Column: Overlapping Files Matrix Table */}
+        <div className="lg:col-span-4 bg-white border border-[#E2E2DE] rounded-[8px] overflow-hidden">
+          <div className="px-3.5 py-2.5 border-b border-[#E2E2DE] bg-[#FAFAFA] font-mono text-xs font-semibold text-[#18181B]">
+            CHANGED FILES ({allFiles.length})
           </div>
-          <div className="text-[10px] text-gray-500">Pipeline & contract breaks</div>
-        </div>
-      </div>
-
-      {/* Main Split: File Matrix & Diff Viewer */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        
-        {/* Left Column: Files list with per-file severity */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs font-mono text-gray-400">
-            <span>FILES CHANGED & RISK SEVERITY</span>
-            <span>{allUniqueFiles.length} files</span>
-          </div>
-
-          <div className="bg-[#161b22] border border-[#30363d] rounded-lg overflow-hidden divide-y divide-[#30363d]/60 text-xs font-mono">
-            {allUniqueFiles.map((file) => {
+          <div className="divide-y divide-[#E2E2DE]">
+            {allFiles.map(file => {
               const severity = getFileSeverity(file);
-              const inA = filesA.includes(file);
-              const inB = filesB.includes(file);
-              const isCollision = inA && inB;
-              const isSelected = selectedFile === file;
-
-              const severityBadge =
-                severity === 'CRITICAL' ? 'bg-red-950/80 text-red-300 border-red-800' :
-                severity === 'HIGH' ? 'bg-orange-950/80 text-orange-300 border-orange-800' :
-                severity === 'MEDIUM' ? 'bg-amber-950/70 text-amber-300 border-amber-800' :
-                'bg-[#0d1117] text-gray-400 border-[#30363d]';
-
+              const isCommon = commonFiles.includes(file);
+              const isSelected = file === selectedFile;
               return (
-                <button
+                <div
                   key={file}
                   onClick={() => setSelectedFile(file)}
-                  className={`w-full p-2.5 flex items-center justify-between text-left transition-colors ${
-                    isSelected
-                      ? 'bg-[#21262d] text-white font-semibold border-l-2 border-blue-500'
-                      : 'hover:bg-[#1a1f27] text-gray-300'
+                  className={`p-3 cursor-pointer text-xs transition-colors ${
+                    isSelected ? 'bg-[#F1F1EF] border-l-2 border-[#2563EB]' : 'hover:bg-[#F8F8F6]'
                   }`}
                 >
-                  <div className="flex items-center gap-2 truncate">
-                    <FileCode className="w-3.5 h-3.5 text-gray-500 shrink-0" />
-                    <span className="truncate">{file}</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold border ${severityBadge}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-[#18181B] font-medium truncate">{file}</span>
+                    <span className={`px-1.5 py-0.2 rounded-[4px] border text-[10px] font-mono font-semibold ${getSeverityBadge(severity)}`}>
                       {severity}
                     </span>
-                    {isCollision && (
-                      <span className="px-1 py-0.2 rounded text-[9px] bg-red-950 text-red-300 border border-red-800 font-bold">
-                        OVERLAP
-                      </span>
-                    )}
                   </div>
-                </button>
+                  <div className="flex items-center gap-2 mt-1 text-[11px] font-mono text-[#6B6B70]">
+                    <span>{isCommon ? 'Parallel Overlap' : 'Branch Specific'}</span>
+                  </div>
+                </div>
               );
             })}
           </div>
         </div>
 
-        {/* Right 2 Columns: Diff View & Diagnostic Context */}
-        <div className="lg:col-span-2 space-y-3">
-          
-          {relevantRisk && (
-            <div className="p-3.5 rounded-lg bg-[#161b22] border border-[#30363d] space-y-1.5 text-xs">
-              <div className="flex items-center justify-between font-mono">
-                <span className="text-gray-400">INTEGRATION DIAGNOSTIC FOR {selectedFile}:</span>
-                <span className="text-red-400 font-bold">{relevantRisk.risk_level}</span>
+        {/* Right Column: Side-by-Side Diff Inspector */}
+        <div className="lg:col-span-8 bg-white border border-[#E2E2DE] rounded-[8px] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#E2E2DE] bg-[#FAFAFA] flex items-center justify-between text-xs font-mono">
+            <span className="font-semibold text-[#18181B]">{selectedFile}</span>
+            <span className="text-[#6B6B70]">{branchA} vs {branchB}</span>
+          </div>
+
+          {isDiffLoading ? (
+            <div className="p-8 text-center text-xs font-mono text-[#6B6B70]">
+              Loading file diff comparison...
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[#E2E2DE] bg-[#18181B] text-[#E2E2DE] font-mono text-xs max-h-[550px] overflow-y-auto">
+              {/* Branch A View */}
+              <div className="p-3.5 space-y-2 overflow-x-auto">
+                <div className="text-[11px] font-semibold text-[#60A5FA] border-b border-gray-700 pb-1">
+                  {branchA}
+                </div>
+                <pre><code>{diffData?.content_a || '// No branch-specific diff available'}</code></pre>
               </div>
-              <p className="text-gray-300 text-xs">
-                {relevantRisk.summary}
-              </p>
-              <div className="text-[11px] text-gray-400 pt-1 font-mono">
-                Impact: {relevantRisk.potential_impact}
+
+              {/* Branch B View */}
+              <div className="p-3.5 space-y-2 overflow-x-auto">
+                <div className="text-[11px] font-semibold text-[#C084FC] border-b border-gray-700 pb-1">
+                  {branchB}
+                </div>
+                <pre><code>{diffData?.content_b || '// No branch-specific diff available'}</code></pre>
               </div>
             </div>
           )}
-
-          {/* Diff Viewer Card (Section 8 requirement) */}
-          <div className="rounded-lg bg-[#161b22] border border-[#30363d] overflow-hidden">
-            <div className="px-3.5 py-2 bg-[#0d1117] border-b border-[#30363d] flex items-center justify-between text-xs font-mono">
-              <div className="flex items-center gap-2">
-                <FileCode className="w-3.5 h-3.5 text-gray-400" />
-                <span className="font-semibold text-white">{selectedFile}</span>
-              </div>
-              <div className="text-gray-400 text-[11px]">
-                <span className="text-blue-300">{branchA}</span> vs <span className="text-purple-300">{branchB}</span>
-              </div>
-            </div>
-
-            {isDiffLoading ? (
-              <div className="p-8 text-center text-xs text-gray-500 font-mono">
-                Loading diff buffers...
-              </div>
-            ) : diffData ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-[#30363d]">
-                <div className="p-3 text-xs font-mono">
-                  <div className="pb-1.5 mb-1.5 border-b border-[#30363d] text-[11px] text-blue-300 font-semibold flex justify-between">
-                    <span>{branchA}</span>
-                    <span className="text-gray-500">Incoming</span>
-                  </div>
-                  <pre className="text-gray-300 whitespace-pre-wrap overflow-x-auto text-[11px] leading-relaxed max-h-96">
-                    {diffData.content_a}
-                  </pre>
-                </div>
-
-                <div className="p-3 text-xs font-mono bg-[#0d1117]">
-                  <div className="pb-1.5 mb-1.5 border-b border-[#30363d] text-[11px] text-purple-300 font-semibold flex justify-between">
-                    <span>{branchB}</span>
-                    <span className="text-gray-500">Target</span>
-                  </div>
-                  <pre className="text-gray-300 whitespace-pre-wrap overflow-x-auto text-[11px] leading-relaxed max-h-96">
-                    {diffData.content_b}
-                  </pre>
-                </div>
-              </div>
-            ) : (
-              <div className="p-8 text-center text-xs text-gray-500">
-                Select a file to compare branch contents
-              </div>
-            )}
-          </div>
-
-          {/* Commits Touching File */}
-          <div className="p-3 rounded-lg bg-[#161b22] border border-[#30363d] text-xs font-mono space-y-1.5">
-            <div className="text-gray-400 text-[11px]">COMMITS TOUCHING {selectedFile}:</div>
-            <div className="space-y-1">
-              {analysis.commits
-                .filter((c) => c.files_changed.includes(selectedFile))
-                .map((c) => (
-                  <div key={c.sha} className="flex items-center justify-between p-1.5 rounded bg-[#0d1117] text-[11px]">
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="text-blue-400 font-bold">{c.sha}</span>
-                      <span className="text-gray-300 truncate">"{c.message}"</span>
-                    </div>
-                    <span className="text-gray-500 text-[10px] shrink-0 pl-2">
-                      {c.author} ({c.branch})
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </div>
-
         </div>
-
       </div>
     </div>
   );

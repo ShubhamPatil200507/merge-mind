@@ -1,18 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { 
-  ShieldAlert, 
   GitBranch, 
   GitPullRequest, 
   CheckCircle2, 
-  AlertTriangle, 
   ArrowRight,
-  Terminal,
-  FileCode,
-  Users,
-  Cpu,
-  Clock,
-  ChevronDown,
-  ChevronUp
+  ShieldAlert
 } from 'lucide-react';
 import { RepositoryAnalysis } from '../types';
 
@@ -31,309 +23,264 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   onGoToPrAnalysis,
   onGoToPipeline
 }) => {
-  const [isTraceExpanded, setIsTraceExpanded] = useState<boolean>(true);
   const topRisk = analysis.detected_risks[0];
 
+  const getSeverityBadge = (level: string) => {
+    switch (level) {
+      case 'CRITICAL':
+        return 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]';
+      case 'HIGH':
+        return 'bg-[#FFF7ED] border-[#FFEDD5] text-[#9A3412]';
+      case 'MEDIUM':
+        return 'bg-[#FEFCE8] border-[#FEF08A] text-[#854D0E]';
+      default:
+        return 'bg-[#F0FDF4] border-[#DCFCE7] text-[#166534]';
+    }
+  };
+
   return (
-    <div className="space-y-5">
-      {/* Technical Summary Header */}
-      <div className="rounded-xl bg-[#161b22] border border-[#30363d] p-5">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="space-y-1.5 max-w-3xl">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#21262d] text-gray-300 border border-[#30363d]">
-                REPOSITORY ADVISORY SUMMARY
-              </span>
-              <span className="text-xs text-gray-400 font-mono">
-                {analysis.repository_name}
-              </span>
+    <div className="space-y-4">
+      {/* Header Context Banner */}
+      <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-4 sm:p-5">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1 max-w-3xl">
+            <div className="flex items-center gap-2 text-xs font-mono text-[#6B6B70]">
+              <span>REPOSITORY</span>
+              <span>/</span>
+              <span className="text-[#18181B] font-semibold">{analysis.repository_name}</span>
             </div>
-            <h2 className="text-lg font-semibold text-white tracking-tight">
-              Cross-Branch Integration & Semantic Risk Analysis
-            </h2>
-            <p className="text-xs text-gray-400 leading-relaxed">
-              Standard Git conflict detection checks textual line overlaps. MergeMind evaluates runtime execution order, API contracts, dependency graphs, and schema shifts across active parallel work.
+            <h1 className="text-xl sm:text-2xl font-semibold text-[#18181B] tracking-tight">
+              Integration & Risk Summary
+            </h1>
+            <p className="text-xs sm:text-sm text-[#6B6B70] leading-relaxed">
+              Synthesizes parallel branches, pull requests, and commit diffs to surface runtime behavior collisions, API contract mismatches, and execution order shifts.
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             {topRisk && (
               <button
                 onClick={() => onSelectRisk(topRisk.id)}
-                className="px-3.5 py-2 rounded-lg bg-red-950/80 hover:bg-red-900 border border-red-800 text-red-200 text-xs font-medium transition-colors flex items-center gap-1.5"
+                className="px-3 py-1.5 rounded-[6px] bg-[#FEF2F2] hover:bg-[#FEE2E2] border border-[#FECACA] text-[#991B1B] text-xs font-medium transition-colors flex items-center gap-1.5"
               >
-                <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
                 <span>Inspect Priority Risk ({topRisk.risk_level})</span>
               </button>
             )}
             <button
               onClick={onGoToComparison}
-              className="px-3 py-2 rounded-lg bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] text-gray-200 text-xs font-medium transition-colors flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-[6px] bg-white hover:bg-[#F1F1EF] border border-[#D9D9D4] text-[#27272A] text-xs font-medium transition-colors flex items-center gap-1.5"
             >
-              <GitBranch className="w-3.5 h-3.5 text-blue-400" />
               <span>Compare Branches</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Metric Cards (High information density, clean typography) */}
+      {/* Metrics Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div className="p-3.5 rounded-lg bg-[#161b22] border border-[#30363d]">
-          <div className="text-[11px] text-gray-400 font-mono flex items-center justify-between">
+        <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-3.5">
+          <div className="text-[11px] font-mono text-[#6B6B70] flex items-center justify-between">
             <span>Critical & High</span>
-            <span className="w-2 h-2 rounded-full bg-red-500"></span>
+            <span className="w-2 h-2 rounded-full bg-[#DC2626]"></span>
           </div>
-          <div className="text-2xl font-bold text-white font-mono mt-1">
+          <div className="text-2xl font-bold font-mono text-[#18181B] mt-1">
             {(analysis.risk_summary.CRITICAL || 0) + (analysis.risk_summary.HIGH || 0)}
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">Bypass or contract break</div>
+          <div className="text-[11px] text-[#929298] mt-0.5">Contract & runtime bypasses</div>
         </div>
 
-        <div className="p-3.5 rounded-lg bg-[#161b22] border border-[#30363d]">
-          <div className="text-[11px] text-gray-400 font-mono flex items-center justify-between">
+        <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-3.5">
+          <div className="text-[11px] font-mono text-[#6B6B70] flex items-center justify-between">
             <span>Medium & Low</span>
-            <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+            <span className="w-2 h-2 rounded-full bg-[#CA8A04]"></span>
           </div>
-          <div className="text-2xl font-bold text-white font-mono mt-1">
+          <div className="text-2xl font-bold font-mono text-[#18181B] mt-1">
             {(analysis.risk_summary.MEDIUM || 0) + (analysis.risk_summary.LOW || 0)}
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">Manifest or schema overlap</div>
+          <div className="text-[11px] text-[#929298] mt-0.5">Manifest or schema overlap</div>
         </div>
 
-        <div className="p-3.5 rounded-lg bg-[#161b22] border border-[#30363d]">
-          <div className="text-[11px] text-gray-400 font-mono flex items-center justify-between">
+        <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-3.5">
+          <div className="text-[11px] font-mono text-[#6B6B70] flex items-center justify-between">
             <span>Monitored PRs</span>
-            <GitPullRequest className="w-3.5 h-3.5 text-gray-400" />
+            <GitPullRequest className="w-3.5 h-3.5 text-[#6B6B70]" />
           </div>
-          <div className="text-2xl font-bold text-white font-mono mt-1">
+          <div className="text-2xl font-bold font-mono text-[#18181B] mt-1">
             {analysis.pull_requests.length}
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">Active parallel pull requests</div>
+          <div className="text-[11px] text-[#929298] mt-0.5">Active parallel branches</div>
         </div>
 
-        <div className="p-3.5 rounded-lg bg-[#161b22] border border-[#30363d]">
-          <div className="text-[11px] text-gray-400 font-mono flex items-center justify-between">
-            <span>Developer Review</span>
-            <CheckCircle2 className="w-3.5 h-3.5 text-blue-400" />
+        <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-3.5">
+          <div className="text-[11px] font-mono text-[#6B6B70] flex items-center justify-between">
+            <span>Human Review</span>
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#2563EB]" />
           </div>
-          <div className="text-2xl font-bold text-white font-mono mt-1">
+          <div className="text-2xl font-bold font-mono text-[#18181B] mt-1">
             {analysis.detected_risks.filter(r => r.review_status === 'REVIEWED').length} / {analysis.detected_risks.length}
           </div>
-          <div className="text-[11px] text-gray-500 mt-1">Human signoffs completed</div>
+          <div className="text-[11px] text-[#929298] mt-0.5">Signoffs recorded</div>
         </div>
       </div>
 
-      {/* Main Split: Detected Risks List & Pull Requests */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        
-        {/* Left 2 Cols: Detected Risks */}
-        <div className="lg:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-mono font-semibold uppercase tracking-wider text-gray-400">
-              Identified Integration Risks ({analysis.detected_risks.length})
-            </h3>
-            <span className="text-[11px] text-gray-500 font-mono">Ranked by risk score</span>
-          </div>
-
-          <div className="space-y-2.5">
-            {analysis.detected_risks.map((risk) => {
-              const isCrit = risk.risk_level === 'CRITICAL';
-              const isHigh = risk.risk_level === 'HIGH';
-
-              return (
-                <div
-                  key={risk.id}
-                  onClick={() => onSelectRisk(risk.id)}
-                  className="p-4 rounded-lg bg-[#161b22] border border-[#30363d] hover:border-blue-500/60 transition-colors cursor-pointer group"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-semibold border ${
-                        isCrit
-                          ? 'bg-red-950/70 text-red-300 border-red-800'
-                          : isHigh
-                          ? 'bg-orange-950/70 text-orange-300 border-orange-800'
-                          : 'bg-amber-950/60 text-amber-300 border-amber-800'
-                      }`}>
-                        {risk.risk_level} • Score {risk.risk_score.total}/100
-                      </span>
-
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#21262d] text-gray-300 border border-[#30363d]">
-                        {risk.collision_type}
-                      </span>
-
-                      {risk.review_status === 'REVIEWED' && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800">
-                          REVIEWED
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="text-[11px] font-mono text-gray-400">
-                      <span>{risk.branches[0]}</span>
-                      <span className="mx-1.5 text-gray-600">↔</span>
-                      <span>{risk.branches[1]}</span>
-                    </div>
-                  </div>
-
-                  <h4 className="text-xs font-semibold text-gray-100 group-hover:text-blue-400 transition-colors">
-                    {risk.title}
-                  </h4>
-
-                  <p className="text-xs text-gray-400 mt-1 leading-relaxed">
-                    {risk.summary}
-                  </p>
-
-                  <div className="mt-3 pt-2.5 border-t border-[#30363d]/50 flex items-center justify-between text-[11px] text-gray-400 font-mono">
-                    <div className="truncate pr-2">
-                      Files: <span className="text-gray-300">{risk.affected_files.join(', ')}</span>
-                    </div>
-                    <span className="text-blue-400 shrink-0 inline-flex items-center gap-1">
-                      Details <ArrowRight className="w-3 h-3" />
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Main Table: Identified Risks (Engineering table design) */}
+      <div className="bg-white border border-[#E2E2DE] rounded-[8px] overflow-hidden">
+        <div className="px-4 py-3 border-b border-[#E2E2DE] flex items-center justify-between bg-[#FAFAFA]">
+          <h2 className="text-xs font-mono font-semibold uppercase tracking-wider text-[#18181B]">
+            Detected Integration Risks ({analysis.detected_risks.length})
+          </h2>
+          <span className="text-[11px] font-mono text-[#929298]">Ordered by risk score</span>
         </div>
 
-        {/* Right 1 Col: Pull Requests */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-mono font-semibold uppercase tracking-wider text-gray-400">
-              Parallel Pull Requests ({analysis.pull_requests.length})
-            </h3>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-[#F1F1EF] border-b border-[#E2E2DE] font-mono text-[11px] text-[#6B6B70]">
+              <tr>
+                <th className="py-2.5 px-4 font-medium">Severity</th>
+                <th className="py-2.5 px-4 font-medium">Collision Type</th>
+                <th className="py-2.5 px-4 font-medium">Title & Scope</th>
+                <th className="py-2.5 px-4 font-medium">Branches</th>
+                <th className="py-2.5 px-4 font-medium">Score</th>
+                <th className="py-2.5 px-4 font-medium text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E2E2DE]">
+              {analysis.detected_risks.map((risk) => (
+                <tr 
+                  key={risk.id}
+                  onClick={() => onSelectRisk(risk.id)}
+                  className="hover:bg-[#F8F8F6] cursor-pointer transition-colors group"
+                >
+                  <td className="py-3 px-4 whitespace-nowrap">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-[4px] border text-[10px] font-mono font-semibold ${getSeverityBadge(risk.risk_level)}`}>
+                      {risk.risk_level}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 font-mono text-xs text-[#6B6B70] whitespace-nowrap">
+                    {risk.collision_type}
+                  </td>
+                  <td className="py-3 px-4">
+                    <div className="font-medium text-[#18181B] group-hover:text-[#2563EB] transition-colors">
+                      {risk.title}
+                    </div>
+                    <div className="text-[11px] text-[#6B6B70] mt-0.5 line-clamp-1 font-mono">
+                      {risk.affected_files.join(', ')}
+                    </div>
+                  </td>
+                  <td className="py-3 px-4 font-mono text-[11px] text-[#6B6B70] whitespace-nowrap">
+                    {risk.branches.join(' ↔ ')}
+                  </td>
+                  <td className="py-3 px-4 font-mono text-xs font-semibold text-[#18181B] whitespace-nowrap">
+                    {risk.risk_score.total}/100
+                  </td>
+                  <td className="py-3 px-4 text-right whitespace-nowrap">
+                    <span className="text-[#2563EB] font-medium text-xs inline-flex items-center gap-1 group-hover:underline">
+                      Inspect
+                      <ArrowRight className="w-3 h-3" />
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Pull Requests & Pipelines Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Monitored Pull Requests */}
+        <div className="bg-white border border-[#E2E2DE] rounded-[8px] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#E2E2DE] flex items-center justify-between bg-[#FAFAFA]">
+            <h2 className="text-xs font-mono font-semibold uppercase tracking-wider text-[#18181B]">
+              Monitored Pull Requests
+            </h2>
             {onGoToPrAnalysis && (
-              <button
+              <button 
                 onClick={onGoToPrAnalysis}
-                className="text-[11px] font-mono text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                className="text-[11px] font-mono text-[#2563EB] hover:underline"
               >
-                <span>Matrix</span>
-                <ArrowRight className="w-3 h-3" />
+                View matrix →
               </button>
             )}
           </div>
-
-          <div className="space-y-2.5">
+          <div className="divide-y divide-[#E2E2DE]">
             {analysis.pull_requests.map((pr) => (
-              <div
-                key={pr.id}
-                className="p-3.5 rounded-lg bg-[#161b22] border border-[#30363d] space-y-2 text-xs"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-blue-400 font-semibold">#{pr.number}</span>
-                  <span className="px-1.5 py-0.2 rounded bg-[#21262d] text-gray-300 text-[10px] font-mono">
-                    {pr.status.toUpperCase()}
+              <div key={pr.id} className="p-3.5 hover:bg-[#F8F8F6] transition-colors">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 font-mono text-xs">
+                    <span className="text-[#2563EB] font-medium">#{pr.number}</span>
+                    <span className="text-[#18181B] font-medium truncate">{pr.title}</span>
+                  </div>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-[4px] bg-[#DCFCE7] text-[#166534] border border-[#BBF7D0]">
+                    {pr.status}
                   </span>
                 </div>
-
-                <div className="font-medium text-gray-200 text-xs">
-                  {pr.title}
-                </div>
-
-                <div className="text-[11px] text-gray-400 font-mono">
-                  <span>{pr.author_name || pr.author}</span>: <code>{pr.source_branch}</code> → <code>{pr.target_branch}</code>
-                </div>
-
-                <div className="pt-2 border-t border-[#30363d]/40 flex items-center justify-between text-[10px] text-gray-500 font-mono">
-                  <span>+{pr.additions} / -{pr.deletions} lines</span>
+                <div className="flex items-center gap-3 mt-1.5 text-[11px] text-[#6B6B70] font-mono">
+                  <span>{pr.source_branch} → {pr.target_branch}</span>
+                  <span>•</span>
+                  <span>+{pr.additions} -{pr.deletions}</span>
+                  <span>•</span>
                   <span>{pr.changed_files_count} files</span>
                 </div>
               </div>
             ))}
           </div>
+        </div>
 
-          <div className="p-3 rounded-lg bg-[#0d1117] border border-[#30363d] text-xs text-gray-400 space-y-2">
-            <div className="text-gray-300 font-mono font-medium text-[11px]">Integration Note</div>
-            <p className="text-[11px] text-gray-400 leading-relaxed font-sans">
-              Pull requests #101 and #102 concurrently modify request routing logic in <code>server.js</code>. Both are syntactically clean in isolation, but merging #102 first silently bypasses #101's auth guard.
-            </p>
-            {onGoToPrAnalysis && (
-              <button
-                onClick={onGoToPrAnalysis}
-                className="w-full mt-1 py-1.5 px-2 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-200 font-mono text-xs border border-[#30363d] transition-colors flex items-center justify-center gap-1.5"
+        {/* Pipeline Execution Details */}
+        <div className="bg-white border border-[#E2E2DE] rounded-[8px] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[#E2E2DE] flex items-center justify-between bg-[#FAFAFA]">
+            <h2 className="text-xs font-mono font-semibold uppercase tracking-wider text-[#18181B]">
+              Analysis Pipeline Trace
+            </h2>
+            {onGoToPipeline && (
+              <button 
+                onClick={onGoToPipeline}
+                className="text-[11px] font-mono text-[#2563EB] hover:underline"
               >
-                <GitPullRequest className="w-3.5 h-3.5 text-blue-400" />
-                <span>Deep PR Semantic Analysis</span>
+                View pipeline →
               </button>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* Agent Execution Pipeline Trace (Section 12, 13, 32 requirement) */}
-      {analysis.agent_trace && analysis.agent_trace.length > 0 && (
-        <div className="rounded-xl bg-[#161b22] border border-[#30363d] overflow-hidden">
-          <div className="p-4 border-b border-[#30363d] flex items-center justify-between bg-[#0d1117]">
-            <div className="flex items-center gap-2.5">
-              <Cpu className="w-4 h-4 text-blue-400" />
-              <span className="text-xs font-mono font-semibold text-white uppercase tracking-wider">
-                Multi-Agent Pipeline Execution Trace ({analysis.agent_trace.length} Checkpoints)
+          <div className="p-3.5 space-y-2 font-mono text-xs">
+            <div className="flex items-center justify-between text-[#6B6B70] py-1 border-b border-[#F1F1EF]">
+              <span className="flex items-center gap-1.5 text-[#18181B]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
+                1. AST & Normalized Code Parser
               </span>
-              <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800">
-                100% COMPLETE
-              </span>
+              <span>0.18s</span>
             </div>
-
-            <div className="flex items-center gap-2">
-              {onGoToPipeline && (
-                <button
-                  onClick={onGoToPipeline}
-                  className="px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-gray-300 text-xs font-mono border border-[#30363d] transition-colors flex items-center gap-1"
-                >
-                  <span>DAG Graph</span>
-                  <ArrowRight className="w-3 h-3" />
-                </button>
-              )}
-              <button
-                onClick={() => setIsTraceExpanded(!isTraceExpanded)}
-                className="p-1 rounded text-gray-400 hover:text-white hover:bg-[#21262d] transition-colors"
-              >
-                {isTraceExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
+            <div className="flex items-center justify-between text-[#6B6B70] py-1 border-b border-[#F1F1EF]">
+              <span className="flex items-center gap-1.5 text-[#18181B]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
+                2. Commit Understanding & Intent Extraction
+              </span>
+              <span>0.24s</span>
+            </div>
+            <div className="flex items-center justify-between text-[#6B6B70] py-1 border-b border-[#F1F1EF]">
+              <span className="flex items-center gap-1.5 text-[#18181B]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
+                3. Cross-Branch Change Graph Mapping
+              </span>
+              <span>0.31s</span>
+            </div>
+            <div className="flex items-center justify-between text-[#6B6B70] py-1 border-b border-[#F1F1EF]">
+              <span className="flex items-center gap-1.5 text-[#18181B]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
+                4. Collision Detection (12 Categories)
+              </span>
+              <span>0.42s</span>
+            </div>
+            <div className="flex items-center justify-between text-[#6B6B70] py-1">
+              <span className="flex items-center gap-1.5 text-[#18181B]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A]" />
+                5. Reconciliation Patch Synthesizer
+              </span>
+              <span>0.28s</span>
             </div>
           </div>
-
-          {isTraceExpanded && (
-            <div className="divide-y divide-[#30363d]/60">
-              <div className="grid grid-cols-12 px-4 py-2 text-[10px] font-mono text-gray-500 uppercase tracking-wider bg-[#161b22]">
-                <div className="col-span-1">Step</div>
-                <div className="col-span-3">Agent</div>
-                <div className="col-span-3">Action</div>
-                <div className="col-span-1">Duration</div>
-                <div className="col-span-4">Runtime Output</div>
-              </div>
-
-              {analysis.agent_trace.map((step) => (
-                <div
-                  key={step.step_number}
-                  className="grid grid-cols-12 px-4 py-2.5 text-xs font-mono items-center hover:bg-[#21262d]/40 transition-colors"
-                >
-                  <div className="col-span-1 text-gray-500">
-                    #{step.step_number}
-                  </div>
-                  <div className="col-span-3 text-white font-medium flex items-center gap-1.5 truncate">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
-                    <span className="truncate">{step.agent_name}</span>
-                  </div>
-                  <div className="col-span-3 text-gray-400 truncate pr-2">
-                    {step.action}
-                  </div>
-                  <div className="col-span-1 text-gray-500 flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-gray-600" />
-                    <span>{step.duration_ms}ms</span>
-                  </div>
-                  <div className="col-span-4 text-gray-300 truncate">
-                    {step.output_summary}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };

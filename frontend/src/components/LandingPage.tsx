@@ -1,15 +1,12 @@
 import React from 'react';
 import { 
   GitBranch, 
-  ShieldAlert, 
   ArrowRight, 
-  Terminal, 
-  CheckCircle2, 
-  GitCommit, 
   FolderGit2, 
-  Layers, 
-  Code2,
-  Play
+  Play,
+  FileCode,
+  ShieldAlert,
+  CheckCircle2
 } from 'lucide-react';
 
 interface LandingPageProps {
@@ -26,124 +23,106 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   hasLoadedRepo
 }) => {
   return (
-    <div className="space-y-12 py-6 max-w-5xl mx-auto">
-      {/* Hero Header */}
-      <div className="space-y-4 text-center">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#161b22] border border-[#30363d] text-xs font-mono text-gray-300">
-          <GitBranch className="w-3.5 h-3.5 text-blue-400" />
-          <span>MergeMind — AI GitHub Integration Advisor</span>
+    <div className="space-y-8 py-4 max-w-4xl mx-auto text-xs">
+      {/* Product Header */}
+      <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-6 sm:p-8 space-y-4">
+        <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[4px] bg-[#F1F1EF] border border-[#E2E2DE] font-mono text-[11px] text-[#18181B]">
+          <GitBranch className="w-3.5 h-3.5 text-[#2563EB]" />
+          <span>MergeMind Integration Advisor</span>
         </div>
 
-        <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-white font-mono leading-tight">
-          Detect hidden integration risks before they become bugs.
+        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-[#18181B] leading-tight">
+          Detect runtime collisions & API contract breaks across parallel Git branches.
         </h1>
 
-        <p className="max-w-2xl mx-auto text-sm sm:text-base text-gray-400 leading-relaxed font-sans">
-          Git tells developers when code conflicts textually. MergeMind analyzes parallel branches, pull requests, and commit diffs to detect when code conflicts in <strong>runtime behavior, security flow, and API contracts</strong>.
+        <p className="text-sm text-[#6B6B70] leading-relaxed max-w-2xl">
+          Standard Git merge conflict detection only checks line-by-line textual overlaps. MergeMind evaluates concurrent branches to surface runtime execution reordering, breaking API contract changes, and dependency divergence before merges occur.
         </p>
 
-        {/* Action CTAs */}
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5 pt-2">
           <button
             onClick={onAnalyzeRepo}
-            className="px-5 py-2.5 rounded-lg bg-[#238636] hover:bg-[#2ea043] text-white font-medium text-xs font-mono transition-colors flex items-center gap-2 shadow-sm"
+            className="px-4 py-2 rounded-[6px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-medium text-xs transition-colors flex items-center gap-1.5"
           >
-            <FolderGit2 className="w-4 h-4" />
-            <span>Analyze a Repository</span>
+            <FolderGit2 className="w-3.5 h-3.5" />
+            <span>Connect Repository</span>
           </button>
 
           <button
             onClick={onTryDemo}
-            className="px-5 py-2.5 rounded-lg bg-[#21262d] hover:bg-[#30363d] text-gray-200 border border-[#30363d] font-medium text-xs font-mono transition-colors flex items-center gap-2"
+            className="px-4 py-2 rounded-[6px] bg-white hover:bg-[#F1F1EF] text-[#27272A] border border-[#D9D9D4] font-medium text-xs transition-colors flex items-center gap-1.5"
           >
-            <Play className="w-3.5 h-3.5 text-blue-400 fill-blue-400" />
-            <span>Try Demo (nexus-api)</span>
+            <Play className="w-3 h-3 text-[#2563EB] fill-[#2563EB]" />
+            <span>Explore Demo (nexus-api)</span>
           </button>
 
           {hasLoadedRepo && (
             <button
               onClick={onGoToDashboard}
-              className="px-5 py-2.5 rounded-lg bg-[#161b22] hover:bg-[#21262d] text-blue-400 border border-blue-900/60 font-medium text-xs font-mono transition-colors flex items-center gap-2"
+              className="px-4 py-2 rounded-[6px] bg-[#F1F1EF] hover:bg-[#E2E2DE] text-[#18181B] font-medium text-xs transition-colors flex items-center gap-1.5"
             >
-              <span>View Active Repository</span>
+              <span>Active Overview</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
       </div>
 
-      {/* Visual Architectural Flow (Section 4 requirement) */}
-      <div className="p-6 rounded-xl bg-[#161b22] border border-[#30363d] space-y-4">
-        <div className="text-center">
-          <div className="text-xs font-mono text-gray-500 uppercase tracking-wider">
-            HOW MERGEMIND PROTECTS CONCURRENT DEVELOPMENT
+      {/* Engineering Architectural Matrix */}
+      <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-5 space-y-4">
+        <div className="font-mono text-xs font-semibold uppercase text-[#18181B] border-b border-[#E2E2DE] pb-2">
+          CONCURRENT BRANCH RESOLUTION FLOW
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 font-mono text-xs">
+          <div className="p-3 bg-[#F7F7F5] border border-[#E2E2DE] rounded-[6px] space-y-1">
+            <div className="font-semibold text-[#2563EB]">Branch A: feature/auth</div>
+            <div className="text-[11px] text-[#6B6B70]">Adds JWT security middleware on /v1</div>
+          </div>
+
+          <div className="p-3 bg-[#F7F7F5] border border-[#E2E2DE] rounded-[6px] space-y-1">
+            <div className="font-semibold text-[#854D0E]">Branch B: feature/api-refactor</div>
+            <div className="text-[11px] text-[#6B6B70]">Restructures express stream dispatcher</div>
+          </div>
+
+          <div className="p-3 bg-[#FEF2F2] border border-[#FECACA] rounded-[6px] space-y-1">
+            <div className="font-semibold text-[#991B1B]">Merge Collision Detected</div>
+            <div className="text-[11px] text-[#991B1B]">B passes textually, but bypasses A's auth guard</div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center font-mono text-xs text-center">
-          {/* Node 1: Dev A */}
-          <div className="p-4 rounded-lg bg-[#0d1117] border border-[#30363d] space-y-1">
-            <div className="text-blue-400 font-bold">Developer A</div>
-            <div className="text-gray-400 text-[11px]">feature/auth</div>
-            <div className="text-gray-500 text-[10px]">Adds JWT middleware</div>
-          </div>
-
-          <div className="hidden md:flex justify-center text-gray-600 font-bold">→</div>
-
-          {/* Node 2: MergeMind Engine */}
-          <div className="p-5 rounded-lg bg-[#161b22] border-2 border-blue-500/60 space-y-2 shadow-lg">
-            <div className="text-white font-bold font-mono text-sm">MergeMind</div>
-            <div className="text-[11px] text-gray-300">Behavioral Collision Detection</div>
-            <div className="pt-1 flex justify-center gap-1">
-              <span className="px-1.5 py-0.2 rounded bg-red-950 text-red-300 text-[10px] font-bold">Risk Detection</span>
-              <span className="px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 text-[10px] font-bold">Resolution Plan</span>
-            </div>
-          </div>
-
-          <div className="hidden md:flex justify-center text-gray-600 font-bold">←</div>
-
-          {/* Node 3: Dev B */}
-          <div className="p-4 rounded-lg bg-[#0d1117] border border-[#30363d] space-y-1">
-            <div className="text-purple-400 font-bold">Developer B</div>
-            <div className="text-gray-400 text-[11px]">feature/api-refactor</div>
-            <div className="text-gray-500 text-[10px]">Refactors request stream</div>
-          </div>
-        </div>
-
-        <div className="p-3 rounded bg-[#0d1117] border border-[#30363d] text-center text-xs text-gray-400 font-sans">
-          Conventional Git sees no textual merge conflict. MergeMind detects that Developer B's refactor inadvertently bypasses Developer A's security middleware and outputs a concrete reconciliation patch.
-        </div>
+        <p className="text-[#6B6B70] text-xs leading-relaxed">
+          Standard Git reports zero conflict markers. MergeMind outputs a concrete, unified diff patch (compatible with <code className="font-mono text-[#18181B]">git apply</code>) that reconciles the middleware pipeline order.
+        </p>
       </div>
 
-      {/* Core Value Capabilities Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
-        <div className="p-4 rounded-lg bg-[#161b22] border border-[#30363d] space-y-2">
-          <div className="flex items-center gap-2 text-red-400 font-bold">
-            <ShieldAlert className="w-4 h-4" />
-            <span>Semantic Risk Detection</span>
+      {/* Value Matrix */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-4 space-y-1.5">
+          <div className="font-mono font-semibold text-xs text-[#18181B]">
+            Contract Breaking Changes
           </div>
-          <p className="text-gray-400 font-sans text-xs leading-relaxed">
-            Identifies API contract mismatches, execution reordering, schema breaking changes, and version collisions across parallel branches.
+          <p className="text-[#6B6B70] text-xs leading-relaxed">
+            Flags schema, key naming, and payload type mismatches between producers and downstream consumers.
           </p>
         </div>
 
-        <div className="p-4 rounded-lg bg-[#161b22] border border-[#30363d] space-y-2">
-          <div className="flex items-center gap-2 text-blue-400 font-bold">
-            <Code2 className="w-4 h-4" />
-            <span>Code Reconciliation Patches</span>
+        <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-4 space-y-1.5">
+          <div className="font-mono font-semibold text-xs text-[#18181B]">
+            Reconciliation Patches
           </div>
-          <p className="text-gray-400 font-sans text-xs leading-relaxed">
-            Generates exact, proposed source modifications and unified git diff patches (<code>git apply</code> compatible) to make branches mutually compatible.
+          <p className="text-[#6B6B70] text-xs leading-relaxed">
+            Synthesizes concrete source diffs with compatibility adapters rather than abstract recommendations.
           </p>
         </div>
 
-        <div className="p-4 rounded-lg bg-[#161b22] border border-[#30363d] space-y-2">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold">
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Human Control & Verification</span>
+        <div className="bg-white border border-[#E2E2DE] rounded-[8px] p-4 space-y-1.5">
+          <div className="font-mono font-semibold text-xs text-[#18181B]">
+            Human Review Controls
           </div>
-          <p className="text-gray-400 font-sans text-xs leading-relaxed">
-            AI recommends; developers decide. Zero automated code modification or autonomous commits. Human review is mandatory.
+          <p className="text-[#6B6B70] text-xs leading-relaxed">
+            Zero autonomous commits or automatic mutations. Developers inspect, test, and approve all changes.
           </p>
         </div>
       </div>
