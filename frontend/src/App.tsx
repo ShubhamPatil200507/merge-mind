@@ -83,7 +83,23 @@ export function App() {
       }
       setActiveTab('overview');
     } catch (err: any) {
-      setError(err.message || 'Error executing repository analysis.');
+      const errorMsg = err.message || 'Error executing repository analysis.';
+      setError(errorMsg);
+      // If we don't already have an analysis loaded, automatically load the demo repo in background
+      if (!analysis) {
+        try {
+          const demoRes = await fetch(`${API_BASE}/api/demo`);
+          if (demoRes.ok) {
+            const demoData: RepositoryAnalysis = await demoRes.json();
+            setAnalysis(demoData);
+            if (demoData.detected_risks.length > 0) {
+              setSelectedRiskId(demoData.detected_risks[0].id);
+            }
+          }
+        } catch {
+          // Keep error displayed
+        }
+      }
     } finally {
       setIsLoading(false);
     }
@@ -158,8 +174,9 @@ export function App() {
               onClick={() => {
                 setError(null);
                 loadDemoRepository();
+                setActiveTab('overview');
               }}
-              className="px-3.5 py-1.5 rounded bg-red-800 hover:bg-red-700 text-white font-medium text-xs transition-colors shrink-0 self-start sm:self-auto border border-red-600"
+              className="px-3.5 py-1.5 rounded bg-red-800 hover:bg-red-700 text-white font-medium text-xs transition-colors shrink-0 self-start sm:self-auto border border-red-600 cursor-pointer"
             >
               Switch to Demo Mode
             </button>
