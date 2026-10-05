@@ -37,25 +37,30 @@ export function App() {
   const loadDemoRepository = async (branchA?: string, branchB?: string) => {
     setIsLoading(true);
     setError(null);
+    // Immediately display local demo data so the user never gets an empty page or stuck error
+    if (!analysis) {
+      setAnalysis(fallbackDemoAnalysis);
+      if (fallbackDemoAnalysis.detected_risks.length > 0) {
+        setSelectedRiskId(fallbackDemoAnalysis.detected_risks[0].id);
+      }
+    }
+
     try {
       let url = `${API_BASE}/api/demo`;
       if (branchA && branchB) {
         url += `?branch_a=${encodeURIComponent(branchA)}&branch_b=${encodeURIComponent(branchB)}`;
       }
       const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}: Failed to fetch repository analysis`);
-      const data: RepositoryAnalysis = await res.json();
-      setAnalysis(data);
-      if (data.detected_risks.length > 0) {
-        setSelectedRiskId(data.detected_risks[0].id);
+      if (res.ok) {
+        const data: RepositoryAnalysis = await res.json();
+        setAnalysis(data);
+        if (data.detected_risks.length > 0) {
+          setSelectedRiskId(data.detected_risks[0].id);
+        }
       }
     } catch (err: any) {
-      // Instantly fall back to offline client demo dataset so app NEVER stays blank
+      // Backend fetch failed - fallbackDemoAnalysis is already rendered
       console.warn('Backend demo fetch failed, using built-in demo dataset:', err);
-      setAnalysis(fallbackDemoAnalysis);
-      if (fallbackDemoAnalysis.detected_risks.length > 0) {
-        setSelectedRiskId(fallbackDemoAnalysis.detected_risks[0].id);
-      }
     } finally {
       setIsLoading(false);
     }
@@ -66,6 +71,16 @@ export function App() {
     setError(null);
     setIsConnectModalOpen(false);
 
+    if (useDemo || repoUrl === 'hyperlink-io/nexus-api') {
+      setAnalysis(fallbackDemoAnalysis);
+      if (fallbackDemoAnalysis.detected_risks.length > 0) {
+        setSelectedRiskId(fallbackDemoAnalysis.detected_risks[0].id);
+      }
+      setActiveTab('overview');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${API_BASE}/api/analyze`, {
         method: 'POST',
@@ -73,7 +88,7 @@ export function App() {
         body: JSON.stringify({
           repo_url: repoUrl,
           token: token,
-          use_demo: useDemo
+          use_demo: false
         })
       });
 
@@ -91,11 +106,10 @@ export function App() {
     } catch (err: any) {
       const errorMsg = err.message || 'Error executing repository analysis.';
       setError(errorMsg);
-      if (!analysis) {
-        setAnalysis(fallbackDemoAnalysis);
-        if (fallbackDemoAnalysis.detected_risks.length > 0) {
-          setSelectedRiskId(fallbackDemoAnalysis.detected_risks[0].id);
-        }
+      // Auto-populate with demo analysis so the user has the full UI active
+      setAnalysis(fallbackDemoAnalysis);
+      if (fallbackDemoAnalysis.detected_risks.length > 0) {
+        setSelectedRiskId(fallbackDemoAnalysis.detected_risks[0].id);
       }
     } finally {
       setIsLoading(false);
