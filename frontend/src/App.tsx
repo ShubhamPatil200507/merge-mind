@@ -17,6 +17,7 @@ import { RepositoryAnalysis, ReviewStatus, IntegrationRisk } from './types';
 import { AlertCircle, AlertTriangle } from 'lucide-react';
 import { API_BASE } from './config';
 import { fallbackDemoAnalysis } from './demoData';
+import { analyzeRepositoryClientSide } from './clientAnalysis';
 
 export function App() {
   const [analysis, setAnalysis] = useState<RepositoryAnalysis | null>(fallbackDemoAnalysis);
@@ -80,25 +81,37 @@ export function App() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/api/analyze`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          repo_url: repoUrl,
-          token: token,
-          use_demo: false
-        })
-      });
-
-      if (!res.ok) {
-        const errPayload = await res.json().catch(() => ({}));
-        const detailMsg = errPayload?.detail?.error || (typeof errPayload?.detail === 'string' ? errPayload.detail : `HTTP ${res.status}: Repository analysis failed`);
-        throw new Error(detailMsg);
+      let res: Response | null = null;
+      try {
+        res = await fetch(`${API_BASE}/api/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            repo_url: repoUrl,
+            token: token,
+            use_demo: false
+          })
+        });
+      } catch (networkErr: any) {
+        console.warn('Backend call failed, invoking client-side analysis fallback:', networkErr);
       }
-      const data: RepositoryAnalysis = await res.json();
-      setAnalysis(data);
-      if (data.detected_risks.length > 0) {
-        setSelectedRiskId(data.detected_risks[0].id);
+
+      if (res && res.ok) {
+        const data: RepositoryAnalysis = await res.json();
+        setAnalysis(data);
+        if (data.detected_risks.length > 0) {
+          setSelectedRiskId(data.detected_risks[0].id);
+        }
+        setIsConnectModalOpen(false);
+        setActiveTab('overview');
+        return;
+      }
+
+      // If backend was not reached or returned an error, run direct client-side analysis
+      const clientData = await analyzeRepositoryClientSide(repoUrl, token);
+      setAnalysis(clientData);
+      if (clientData.detected_risks.length > 0) {
+        setSelectedRiskId(clientData.detected_risks[0].id);
       }
       setIsConnectModalOpen(false);
       setActiveTab('overview');
